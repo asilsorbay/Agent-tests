@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Çekirdek Laboratuvarı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --ground:#0b0a09; --panel:#121110; --line:#26221e; --line-2:#3a342e;
+  --ink:#ece5d8; --ink-2:#a89d8d; --ink-3:#6f665a;
+  --molten:#ff6b24; --gold:#ffb35c; --probe:#bff7ec;
+  --pwave:#ffc56b; --swave:#93b6ff; --norm:#8ccdff; --rev:#ff8cbe;
+  --f-display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--ground);color:var(--ink);font:14px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--probe);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(0,1fr) 410px;height:100%}
+.stage{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--ground);position:relative;z-index:2}
+.bar-group{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:3px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:7px 11px;font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
+.seg.big button{padding:9px 14px}
+.toggle{display:inline-flex;align-items:center;gap:7px;font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;user-select:none;white-space:nowrap}
+.toggle input[type=checkbox]{accent-color:var(--molten);margin:0}
+.toggle input[type=range]{width:90px}
+.btn{background:var(--molten);color:#1a0a02;border:0;border-radius:3px;padding:9px 14px;font:600 11.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#ff8340}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line-2)}
+.btn.ghost:hover{border-color:var(--ink-2)}
+
+.view{position:relative;flex:1;min-height:0;overflow:hidden;background:#050505}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ov{touch-action:none;cursor:grab}
+#ov.dragging{cursor:grabbing}
+.legend{position:absolute;left:16px;bottom:16px;pointer-events:none;display:flex;flex-direction:column;gap:5px;font:500 11px/1.2 var(--f-mono);color:var(--ink-2);background:rgba(11,10,9,.62);padding:10px 12px;border:1px solid var(--line);border-radius:3px;max-width:calc(100% - 32px)}
+.legend .row{display:flex;align-items:center;gap:8px}
+.legend .sw{width:10px;height:10px;border-radius:2px;flex:none}
+.legend .row.on{color:var(--probe)}
+.legend .ttl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+.legend .grad{width:200px;max-width:100%;height:10px;border-radius:2px}
+.legend .ends{display:flex;justify-content:space-between;width:200px;max-width:100%;color:var(--ink-2)}
+.hint{position:absolute;right:16px;bottom:16px;font:400 11px/1.6 var(--f-mono);color:var(--ink-3);text-align:right;pointer-events:none}
+.tip{position:absolute;left:0;top:0;pointer-events:none;background:rgba(11,10,9,.9);border:1px solid var(--line-2);padding:6px 9px;font:500 11px/1.4 var(--f-mono);border-radius:3px;white-space:nowrap;color:var(--ink)}
+.tip b{color:var(--probe);font-weight:500}
+.toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:9px 16px;border-radius:3px;font:600 12px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;pointer-events:none;transition:opacity .6s;opacity:0;white-space:nowrap}
+.toast.show{opacity:1}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--ink-2)}
+
+.seis-hud{position:absolute;left:16px;top:14px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.clock{display:flex;align-items:baseline;gap:10px}
+.clock .k{font:500 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.clock #clock{font:700 26px/1 var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.keys{display:flex;gap:14px;font:500 11px var(--f-mono);color:var(--ink-2);flex-wrap:wrap}
+.key::before{content:"";display:inline-block;width:14px;height:2px;margin-right:6px;vertical-align:middle}
+.key.p::before{background:var(--pwave)} .key.s::before{background:var(--swave)} .key.k::before{background:#fff;height:6px;width:6px;border-radius:50%}
+.seis-note{position:absolute;left:16px;bottom:14px;max-width:min(52ch,calc(100% - 32px));font:400 12px/1.55 var(--f-body);color:var(--ink-2);background:rgba(11,10,9,.72);padding:10px 12px;border:1px solid var(--line);border-radius:3px;pointer-events:none}
+.seis-note b{color:var(--ink);font-weight:600}
+
+.side{overflow-y:auto;padding-inline:22px;padding-block:24px 30px;display:flex;flex-direction:column;gap:30px;min-width:0}
+.eyebrow{font:500 11px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--molten)}
+.brand h1{font:700 46px/.95 var(--f-display);letter-spacing:-.03em;margin:10px 0 12px}
+.lede{color:var(--ink-2);margin:0;max-width:42ch;text-wrap:pretty}
+.panel{display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-top:1px solid var(--line-2);padding-top:12px}
+h2{font:500 15px/1 var(--f-display);letter-spacing:.02em;margin:0;text-wrap:balance}
+.sec-note{font:400 11px var(--f-mono);color:var(--ink-3);text-align:right}
+.sec-desc{margin:0;color:var(--ink-2);font-size:13px;text-wrap:pretty}
+.depth-read{display:flex;align-items:baseline;gap:8px}
+.depth-num{font:700 58px/1 var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.depth-unit{font:500 14px var(--f-mono);color:var(--ink-2)}
+.layer-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.layer-name{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--f-body)}
+.layer-name .sw{width:12px;height:12px;border-radius:2px}
+.state{font:500 10px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;padding:4px 7px;border:1px solid var(--line-2);border-radius:2px;color:var(--ink-2)}
+.state.liquid{border-color:var(--molten);color:var(--molten)}
+
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;width:100%;height:26px;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line-2)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line-2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ink);border:3px solid var(--ground);margin-top:-6px;box-shadow:0 0 0 1px var(--ink-2)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:3px solid var(--ground)}
+#depth{height:30px}
+#depth::-webkit-slider-runnable-track{height:8px;background:linear-gradient(90deg,#8c7b67 0 .55%,#7a2c18 .55% 6.44%,#8f3618 6.44% 10.36%,#a8441c 10.36% 42.38%,#c65a20 42.38% 45.38%,#ff8a2a 45.38% 80.84%,#ffe3ae 80.84%)}
+#depth::-moz-range-track{height:8px;background:linear-gradient(90deg,#8c7b67 0 .55%,#7a2c18 .55% 6.44%,#8f3618 6.44% 10.36%,#a8441c 10.36% 42.38%,#c65a20 42.38% 45.38%,#ff8a2a 45.38% 80.84%,#ffe3ae 80.84%)}
+#depth::-webkit-slider-thumb{width:18px;height:18px;margin-top:-5px;background:var(--probe);box-shadow:0 0 0 1px var(--probe),0 0 14px rgba(191,247,236,.6)}
+#depth::-moz-range-thumb{background:var(--probe)}
+.scale-ticks{display:flex;justify-content:space-between;font:400 10px var(--f-mono);color:var(--ink-3);margin-top:-6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:transparent;border:1px solid var(--line-2);border-radius:2px;padding:5px 8px;font:500 10.5px/1 var(--f-mono);letter-spacing:.04em;color:var(--ink-2);cursor:pointer}
+.chip:hover{color:var(--ink);border-color:var(--ink-3)}
+.chip span{color:var(--ink-3);margin-left:4px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.stat{background:var(--ground);padding:10px 12px;min-width:0}
+.stat .k{font:500 10px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.stat .v{font:500 20px/1.25 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat .v small{font-size:12px;color:var(--ink-2);margin-left:3px}
+.stat .s{font:400 11px/1.3 var(--f-mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.layer-desc{margin:0;color:var(--ink);font-size:13.5px;text-wrap:pretty}
+.compare{margin:0;font:400 12px/1.5 var(--f-mono);color:var(--ink-2)}
+.compare b{color:var(--gold);font-weight:500}
+#profile{width:100%;height:250px;display:block;touch-action:none;cursor:ns-resize}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+.pol-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.pol{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:9px 12px;border:1px solid var(--norm);border-radius:3px;min-width:130px}
+.pol .k{font:500 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.pol .v{font:600 15px var(--f-body);color:var(--norm)}
+.pol[data-pol="r"]{border-color:var(--rev)} .pol[data-pol="r"] .v{color:var(--rev)}
+.mini{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:9px 12px;border:1px solid var(--line);border-radius:3px;flex:1;min-width:90px}
+.mini .k{font:500 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.mini .v{font:500 17px var(--f-mono);font-variant-numeric:tabular-nums}
+figure{margin:0;display:flex;flex-direction:column;gap:6px}
+figcaption{font:400 11px/1.5 var(--f-mono);color:var(--ink-3)}
+#stripes{width:100%;height:120px;display:block}
+#series{width:100%;height:70px;display:block}
+.ctl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ctl-row label{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:flex;align-items:center;gap:8px;flex:1;min-width:150px}
+.foot{font:400 11px/1.6 var(--f-mono);color:var(--ink-3);border-top:1px solid var(--line);padding-top:14px;margin:0}
+
+@media (max-width:980px){
+  html,body{height:auto}
+  .app{grid-template-columns:1fr;height:auto}
+  .stage{height:74svh;min-height:440px;border-right:0;border-bottom:1px solid var(--line)}
+  .side{overflow:visible;padding-inline:16px}
+  .hint{display:none}
+  .brand h1{font-size:40px}
+}
+@media (max-width:560px){
+  .seg button{padding:7px 8px;letter-spacing:.04em}
+  .legend{font-size:10px}
+  .seis-note{font-size:11px}
+  .depth-num{font-size:48px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="stage">
+    <div class="bar">
+      <div class="seg big" role="group" aria-label="Görünüm">
+        <button type="button" id="tabCore" aria-pressed="true">3B Kesit</button>
+        <button type="button" id="tabSeis" aria-pressed="false">Sismik dalgalar</button>
+      </div>
+      <div class="bar-group" id="coreCtl">
+        <div class="seg" role="group" aria-label="Kesit rengi" id="modeSeg">
+          <button type="button" data-mode="0" aria-pressed="true">Doğal</button>
+          <button type="button" data-mode="1" aria-pressed="false">Sıcaklık</button>
+          <button type="button" data-mode="2" aria-pressed="false">Yoğunluk</button>
+          <button type="button" data-mode="3" aria-pressed="false">Vp</button>
+          <button type="button" data-mode="4" aria-pressed="false">Vs</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="optField" checked> Alan çizgileri</label>
+        <label class="toggle"><input type="checkbox" id="optLabels" checked> Etiketler</label>
+      </div>
+      <div class="bar-group" id="seisCtl" hidden>
+        <button class="btn" id="quake" type="button">Deprem üret</button>
+        <label class="toggle"><input type="checkbox" id="optP" checked> P</label>
+        <label class="toggle"><input type="checkbox" id="optS" checked> S</label>
+        <label class="toggle">Hız <input type="range" id="seisSpeed" min="30" max="320" value="110"></label>
+      </div>
+    </div>
+
+    <div class="view" id="viewCore">
+      <canvas id="gl"></canvas>
+      <canvas id="ov"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="toast" id="toast"></div>
+      <div class="legend" id="legend"></div>
+      <div class="hint">Sürükle: döndür · Tekerlek: yakınlaş<br>Kesite tıkla: sondayı oraya indir</div>
+    </div>
+
+    <div class="view" id="viewSeis" hidden>
+      <canvas id="seis"></canvas>
+      <div class="seis-hud">
+        <div class="clock"><span class="k">Depremden sonra</span><span id="clock">00:00</span></div>
+        <div class="keys"><span class="key p">P · basınç dalgası</span><span class="key s">S · kesme dalgası</span><span class="key k">iç çekirdekten geçen P</span></div>
+      </div>
+      <p class="seis-note"><b>S dalgaları sıvıda ilerleyemez</b>: dış çekirdeğe çarpıp geri döner, <span id="sShadow">~100°</span> ötesinde hiç S varışı yoktur. <b>P dalgaları</b> sıvıya girerken yavaşlayıp kırılır ve <span id="pShadow">~100°–145°</span> arasında bir gölge bırakır. Gölgeye düşen zayıf P varışları, 1936'da Inge Lehmann'ı katı iç çekirdeği keşfetmeye götürdü.</p>
+    </div>
+  </main>
+
+  <aside class="side">
+    <header class="brand">
+      <div class="eyebrow">Yerin içi · 0 → 6.371 km</div>
+      <h1>Çekirdek</h1>
+      <p class="lede">Gezegenin merkezine bir sonda indir, sismik dalgaların çekirdeği nasıl ele verdiğini izle, manyetik alanın kendiliğinden ters dönüşünü kaydet.</p>
+    </header>
+
+    <section class="panel" aria-labelledby="hProbe">
+      <div class="sec-head"><h2 id="hProbe">Sonda</h2><span class="sec-note">kaydır · kesite ya da grafiğe tıkla</span></div>
+      <div class="depth-read"><span class="depth-num" id="depthVal">0</span><span class="depth-unit">km derinlik</span></div>
+      <div class="layer-line">
+        <span class="layer-name"><span class="sw" id="layerSw"></span><span id="layerName">Kabuk</span></span>
+        <span class="state" id="layerState">Katı</span>
+      </div>
+      <div>
+        <input type="range" id="depth" min="0" max="6371" step="1" value="0" aria-label="Sonda derinliği (km)">
+        <div class="scale-ticks"><span>yüzey</span><span>manto</span><span>dış çekirdek</span><span>iç</span></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="stats">
+        <div class="stat"><div class="k">Sıcaklık</div><div class="v" id="sT">—</div><div class="s" id="sT2">—</div></div>
+        <div class="stat"><div class="k">Basınç</div><div class="v" id="sP">—</div><div class="s" id="sP2">—</div></div>
+        <div class="stat"><div class="k">Yoğunluk</div><div class="v" id="sRho">—</div><div class="s" id="sRho2">—</div></div>
+        <div class="stat"><div class="k">Yerçekimi</div><div class="v" id="sG">—</div><div class="s" id="sG2">—</div></div>
+        <div class="stat"><div class="k">Vp · P hızı</div><div class="v" id="sVp">—</div><div class="s" id="sVp2">—</div></div>
+        <div class="stat"><div class="k">Vs · S hızı</div><div class="v" id="sVs">—</div><div class="s" id="sVs2">—</div></div>
+      </div>
+      <p class="layer-desc" id="layerDesc"></p>
+      <p class="compare" id="compare"></p>
+      <canvas id="profile" aria-label="Derinliğe göre sıcaklık, basınç, yoğunluk ve dalga hızı profili"></canvas>
+      <div class="row-btns">
+        <button class="btn" id="descend" type="button">Merkeze in ↓</button>
+        <button class="btn ghost" id="surface" type="button">Yüzeye çık</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hDyn">
+      <div class="sec-head"><h2 id="hDyn">Jeodinamo</h2><span class="sec-note">Rikitake çift disk modeli</span></div>
+      <p class="sec-desc">Dış çekirdekteki sıvı demirin akışı manyetik alanı üretir. Bu kaotik model tıpkı gerçeği gibi zaman zaman kendiliğinden ters döner; 3B görünümdeki alan çizgileri ona bağlı. Son gerçek tersinme 780 bin yıl önceydi.</p>
+      <div class="pol-row">
+        <div class="pol" id="pol" data-pol="n"><span class="k">Polarite</span><span class="v" id="polV">Normal</span></div>
+        <div class="mini"><span class="k">Tersinme</span><span class="v" id="revN">0</span></div>
+        <div class="mini"><span class="k">Dipol gücü</span><span class="v" id="dipV">—</span></div>
+      </div>
+      <figure>
+        <canvas id="stripes" aria-label="Okyanus ortası sırtında kaydedilen manyetik şeritler"></canvas>
+        <figcaption>Okyanus tabanı şeritleri: sırtta soğuyan lav o anki alanı kaydeder ve iki yana taşınır. Açık = normal, koyu = ters. Üstteki çizgi, bir gemi manyetometresinin ölçeceği anomali.</figcaption>
+      </figure>
+      <canvas id="series" aria-label="Dinamo akımının zamanla değişimi"></canvas>
+      <div class="ctl-row">
+        <label for="dynSpeed">Hız <input type="range" id="dynSpeed" min="0.2" max="5" step="0.1" value="0.9"></label>
+        <button class="btn ghost" id="flip" type="button">Alanı ters çevir</button>
+      </div>
+    </section>
+
+    <p class="foot">Veri: PREM yer modeli (Dziewonski &amp; Anderson, 1981), sadeleştirilmiş. Sıcaklıklar tahminidir (±500 K). Kesit gerçek ölçeklidir; kabuk bu yüzden ince bir çizgi. Sismik ışınlar bu hız modelinden Snell yasasıyla izlenir; gölge açıları modelden hesaplanır.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+   Earth model
+   ========================================================= */
+const RE = 6371;
+const RIC = 1221 / RE, RCMB = 3480 / RE;
+const TAU = Math.PI * 2;
+const $ = s => document.querySelector(s);
+const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FMT = {};
+const fmt = (v, d = 0) => (FMT[d] || (FMT[d] = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d }))).format(v);
+
+const LAYERS = [
+  { name: 'Kabuk', d0: 0, d1: 35, state: 'Katı', col: '#8c7b67',
+    desc: 'Silikat kayaçlardan ince bir kabuk: kıtalarda 30–70 km, okyanuslarda yalnızca 5–10 km. Bu ölçekte bir elmanın kabuğundan bile ince.' },
+  { name: 'Üst manto', d0: 35, d1: 410, state: 'Katı · akar', col: '#7a2c18',
+    desc: 'Olivince zengin peridotit. Katıdır ama milyonlarca yılda akar; tektonik levhalar bu tabakanın üzerinde kayar.' },
+  { name: 'Geçiş zonu', d0: 410, d1: 660, state: 'Katı', col: '#8f3618',
+    desc: 'Basınç olivini önce wadsleyite, sonra ringwoodite dönüştürür. Bu mineraller kristal yapılarında okyanuslar kadar su saklayabilir.' },
+  { name: 'Alt manto', d0: 660, d1: 2700, state: 'Katı', col: '#a8441c',
+    desc: 'Bridgmanit, gezegenin en bol minerali. Sıcak malzeme yılda birkaç santimetre hızla yükselir, soğuk levhalar çekirdeğe kadar batar.' },
+  { name: 'D″ katmanı', d0: 2700, d1: 2891, state: 'Katı', col: '#c65a20',
+    desc: 'Çekirdek–manto sınırının üstündeki düzensiz kuşak. Afrika ve Pasifik altındaki kıta büyüklüğünde sıcak yığınlar (LLSVP) burada oturur.' },
+  { name: 'Dış çekirdek', d0: 2891, d1: 5150, state: 'Sıvı', col: '#ff8a2a',
+    desc: 'Sıvı demir-nikel. Yılda ~15 km hızla çalkalanan akış, manyetik alanı üreten dinamoyu çalıştırır. S dalgaları buradan geçemez.' },
+  { name: 'İç çekirdek', d0: 5150, d1: 6371, state: 'Katı', col: '#ffe3ae',
+    desc: 'Güneş yüzeyine yakın sıcaklıkta, ama 3,6 milyon atmosferlik basınç altında katılaşmış demir-nikel küre. Dış çekirdek soğudukça yılda ~1 mm büyüyor.' },
+];
+const layerAt = d => { for (const L of LAYERS) if (d < L.d1) return L; return LAYERS[LAYERS.length - 1]; };
+
+// depth(km), T(K), P(GPa), rho(g/cm3), g(m/s2) — PREM-based, simplified
+const PROF = [
+  [0, 288, 0, 2.60, 9.82], [35, 800, 1.0, 2.90, 9.84], [35, 800, 1.0, 3.38, 9.84],
+  [220, 1650, 7.1, 3.40, 9.86], [410, 1780, 13.4, 3.54, 9.90], [410, 1780, 13.4, 3.72, 9.90],
+  [660, 1900, 23.8, 3.99, 9.99], [660, 1900, 23.8, 4.38, 9.99], [1000, 2050, 38.5, 4.58, 9.95],
+  [2000, 2400, 88.0, 5.05, 9.98], [2700, 2650, 125.0, 5.49, 10.40], [2891, 4000, 135.8, 5.57, 10.68],
+  [2891, 4000, 135.8, 9.90, 10.68], [3500, 4550, 190.0, 10.60, 8.80], [4500, 5150, 285.0, 11.70, 5.90],
+  [5150, 5400, 328.9, 12.17, 4.40], [5150, 5400, 328.9, 12.76, 4.40], [5700, 5530, 352.0, 12.95, 2.40],
+  [6371, 5600, 363.9, 13.09, 0.00],
+];
+function prof(d) {
+  d = clamp(d, 0, RE);
+  let i = 0;
+  while (i < PROF.length - 2 && d >= PROF[i + 1][0]) i++;
+  const a = PROF[i], b = PROF[i + 1];
+  const f = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 0;
+  return { T: lerp(a[1], b[1], f), P: lerp(a[2], b[2], f), rho: lerp(a[3], b[3], f), g: lerp(a[4], b[4], f) };
+}
+
+// seismic velocity segments, by radius r (km): [r, Vp, Vs]
+const VSEG = [
+  { r1: 1221.5, pts: [[0, 11.266, 3.667], [1221.5, 11.028, 3.504]] },
+  { r1: 3480, pts: [[1221.5, 10.356, 0], [2000, 9.83, 0], [2800, 8.98, 0], [3480, 8.065, 0]] },
+  { r1: 5701, pts: [[3480, 13.716, 7.265], [3630, 13.68, 7.265], [4000, 13.25, 7.10], [4500, 12.60, 6.85], [5000, 11.95, 6.55], [5600, 11.07, 6.24], [5701, 10.75, 5.95]] },
+  { r1: 5961, pts: [[5701, 10.27, 5.57], [5961, 9.13, 4.93]] },
+  { r1: 6151, pts: [[5961, 8.91, 4.77], [6151, 8.56, 4.64]] },
+  { r1: 6346.6, pts: [[6151, 7.99, 4.42], [6346.6, 8.11, 4.49]] },
+  { r1: 1e9, pts: [[6346.6, 6.8, 3.9], [6356, 6.8, 3.9], [6356.01, 5.8, 3.2], [6371, 5.8, 3.2]] },
+];
+function segIdx(r) { for (let i = 0; i < VSEG.length; i++) if (r < VSEG[i].r1) return i; return VSEG.length - 1; }
+function vel(i, r, S) {
+  const pts = VSEG[i].pts, k = S ? 2 : 1;
+  if (r <= pts[0][0]) return pts[0][k];
+  for (let j = 0; j < pts.length - 1; j++) {
+    if (r <= pts[j + 1][0]) { const f = (r - pts[j][0]) / (pts[j + 1][0] - pts[j][0]); return pts[j][k] + (pts[j + 1][k] - pts[j][k]) * f; }
+  }
+  return pts[pts.length - 1][k];
+}
+function velAt(d) { const r = RE - d; const i = segIdx(r - 1e-3); return { vp: vel(i, r, false), vs: vel(i, r, true) }; }
+
+/* =========================================================
+   Seismic ray tracing (ray parameter p = r·sin(i)/v conserved)
+   ========================================================= */
+function traceRay(p, S) {
+  let r = RE - 0.01, Dl = 0, t = 0, dir = -1, seg = segIdx(r);
+  const xs = [0], ys = [r / RE], ts = [0];
+  let cls = 0, refl = false, n = 0;
+  for (let it = 0; it < 40000; it++) {
+    const ds = r < 300 ? 1 : 5;
+    const v = vel(seg, r, S);
+    const s = p * v / r;
+    if (dir < 0 && s >= 1) dir = 1;                       // turning point
+    const sn = Math.min(s, 1), c = Math.sqrt(Math.max(1 - sn * sn, 4e-4));
+    let rn = r + dir * c * ds;
+    const dD = sn * ds / Math.max(r, 1);
+    if (rn <= 0.5) { rn = Math.abs(rn) + 0.5; Dl += Math.PI; dir = 1; }
+    const sN = segIdx(rn);
+    if (sN !== seg) {
+      const vN = vel(sN, rn, S);
+      if (vN <= 0 || p * vN / rn >= 1) { dir = -dir; rn = r; refl = true; } // liquid (S) or total reflection
+      else { seg = sN; if (sN === 0) cls = 2; else if (sN === 1 && cls < 1) cls = 1; }
+    }
+    Dl += dD; t += ds / v; r = Math.min(rn, RE); n++;
+    if (n % 3 === 0 || r >= RE) { xs.push(r / RE * Math.sin(Dl)); ys.push(r / RE * Math.cos(Dl)); ts.push(t); }
+    if (r >= RE) break;
+  }
+  let deg = (Dl * 180 / Math.PI) % 360; if (deg > 180) deg = 360 - deg;
+  return { S, p, xs: Float32Array.from(xs), ys: Float32Array.from(ys), ts: Float32Array.from(ts),
+           tEnd: t, deg, cls, refl, idx: 0, drawn: 0, arrived: false };
+}
+const RAYS = { P: [], S: [] };
+(function buildRays() {
+  const NP = 200, NS = 170;
+  const pmP = (RE - 0.01) / 5.8 * 0.9995, pmS = (RE - 0.01) / 3.2 * 0.9995;
+  for (let i = 0; i < NP; i++) RAYS.P.push(traceRay(pmP * Math.pow((i + 0.5) / NP, 1.4), false));
+  for (let i = 0; i < NS; i++) RAYS.S.push(traceRay(pmS * Math.pow((i + 0.5) / NS, 1.4), true));
+})();
+const SHADOW = (() => {
+  let pStart = 0, pEnd = 180, sStart = 0, tP = 0, tS = 0, tK = 1e9;
+  for (const r of RAYS.P) {
+    if (r.cls === 0 && !r.refl && r.deg > pStart) { pStart = r.deg; tP = r.tEnd; }
+    if (r.cls === 1 && !r.refl && r.deg < pEnd) pEnd = r.deg;
+  }
+  for (const r of RAYS.S) if (!r.refl && r.deg > sStart) { sStart = r.deg; tS = r.tEnd; }
+  for (const r of RAYS.P) if (r.cls === 2) tK = Math.min(tK, r.tEnd);
+  return { pStart, pEnd, sStart, tP, tS, tK };
+})();
+const MAXT = Math.max(...RAYS.P.concat(RAYS.S).map(r => r.tEnd).filter(t => t < 4000));
+$('#pShadow').textContent = `${fmt(SHADOW.pStart)}°–${fmt(SHADOW.pEnd)}°`;
+$('#sShadow').textContent = `${fmt(SHADOW.sStart)}°`;
+
+/* =========================================================
+   Dynamo (Rikitake two-disc, chaotic reversals)
+   ========================================================= */
+const dyn = { x: 1.0, y: 0.45, z: 3.1, mu: 1, A: 3.75, tau: 0, pol: 1, rev: 0, lastRev: 0,
+  xmax: 3, strength: 1, speed: 0.9, hist: new Float32Array(1400), hi: 0, hn: 0, acc: 0, SAMPLE: 0.45 };
+function dDyn(x, y, z) { return [-dyn.mu * x + z * y, -dyn.mu * y + (z - dyn.A) * x, 1 - x * y]; }
+function rk4(h) {
+  const { x, y, z } = dyn;
+  const k1 = dDyn(x, y, z);
+  const k2 = dDyn(x + h / 2 * k1[0], y + h / 2 * k1[1], z + h / 2 * k1[2]);
+  const k3 = dDyn(x + h / 2 * k2[0], y + h / 2 * k2[1], z + h / 2 * k2[2]);
+  const k4 = dDyn(x + h * k3[0], y + h * k3[1], z + h * k3[2]);
+  dyn.x += h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+  dyn.y += h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+  dyn.z += h / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+}
+let onReversal = () => {};
+function stepDyn(T, record = true) {
+  while (T > 0) {
+    const h = Math.min(0.01, T); rk4(h); T -= h; dyn.tau += h;
+    const ax = Math.abs(dyn.x);
+    dyn.xmax = Math.max(dyn.xmax * 0.99995, ax, 1.5);
+    const np = dyn.x >= 0 ? 1 : -1;
+    if (np !== dyn.pol) { dyn.pol = np; if (record) { dyn.rev++; onReversal(); } dyn.lastRev = dyn.tau; }
+    if (dyn.tau - dyn.lastRev > 260) { dyn.z += 0.35; dyn.lastRev = dyn.tau; } // nudge if stuck on a long chron
+    if (record) {
+      dyn.acc += h;
+      if (dyn.acc >= dyn.SAMPLE) { dyn.acc -= dyn.SAMPLE; dyn.hist[dyn.hi] = dyn.x; dyn.hi = (dyn.hi + 1) % dyn.hist.length; dyn.hn = Math.min(dyn.hn + 1, dyn.hist.length); }
+    }
+  }
+  dyn.strength = clamp(Math.abs(dyn.x) / (dyn.xmax * 0.8), 0, 1);
+}
+stepDyn(80, false);                            // settle onto the attractor
+stepDyn(dyn.SAMPLE * 700, true);               // pre-record history so the stripes are populated
+dyn.rev = 0;
+const histAt = k => dyn.hist[(dyn.hi - 1 - k + dyn.hist.length * 4) % dyn.hist.length];
+
+/* =========================================================
+   WebGL core renderer
+   ========================================================= */
+const VERT = `attribute vec2 a; void main(){ gl_Position = vec4(a,0.,1.); }`;
+const FRAG = `
+precision highp float;
+uniform vec2 uRes;
+uniform float uTime, uTan, uProbe, uMode, uHover, uCore;
+uniform vec3 uCP, uCR, uCU, uCF, uSun;
+uniform sampler2D uProf;
+const float RIC = 0.19165;
+const float RCMB = 0.546225;
+const float RD2 = 0.57621;
+const float R660 = 0.89641;
+const float R410 = 0.93565;
+const float RMOHO = 0.99451;
+
+float hash(vec3 p){ p = fract(p*vec3(.1031,.1030,.0973)); p += dot(p, p.yxz+33.33); return fract((p.x+p.y)*p.z); }
+float noise(vec3 x){
+  vec3 i = floor(x), f = fract(x); f = f*f*(3.-2.*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x), mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x), f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x), mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x), f.y), f.z);
+}
+float fbm(vec3 p){ float s=0., a=.5; for(int i=0;i<5;i++){ s+=a*noise(p); p=p*2.02+vec3(3.1,1.7,4.3); a*=.5; } return s/.97; }
+float fbm3(vec3 p){ float s=0., a=.5; for(int i=0;i<3;i++){ s+=a*noise(p); p=p*2.03+vec3(1.3,7.1,2.9); a*=.5; } return s/.875; }
+vec3 rotY(vec3 p, float a){ float c=cos(a), s=sin(a); return vec3(c*p.x-s*p.z, p.y, s*p.x+c*p.z); }
+vec3 ramp5(float t, vec3 a, vec3 b, vec3 c, vec3 d, vec3 e){
+  t = clamp(t,0.,1.)*4.;
+  if(t<1.) return mix(a,b,t); if(t<2.) return mix(b,c,t-1.); if(t<3.) return mix(c,d,t-2.); return mix(d,e,t-3.);
+}
+vec3 cmapT(float t){ return ramp5(t, vec3(.04,.02,.03), vec3(.35,.05,.04), vec3(.8,.2,.06), vec3(1.,.6,.2), vec3(1.,.96,.85)); }
+vec3 cmapR(float t){ return ramp5(t, vec3(.04,.08,.14), vec3(.1,.28,.4), vec3(.2,.55,.55), vec3(.66,.83,.55), vec3(.97,.95,.8)); }
+vec3 cmapV(float t){ return ramp5(t, vec3(.07,.05,.18), vec3(.3,.14,.45), vec3(.7,.25,.52), vec3(.95,.52,.4), vec3(.99,.9,.65)); }
+
+float iSph(vec3 ro, vec3 rd, float r){ float b=dot(ro,rd), c=dot(ro,ro)-r*r, h=b*b-c; if(h<0.) return -1.; return -b-sqrt(h); }
+void plane(vec3 ro, vec3 rd, vec3 a, inout float tB, inout float id, inout vec3 ax){
+  float dn = dot(rd,a); if(abs(dn)<1e-6) return;
+  float tp = -dot(ro,a)/dn; if(tp<=0. || tp>=tB) return;
+  vec3 p = ro+rd*tp; vec3 q = p - a*dot(p,a);
+  if(q.x<-1e-4 || q.y<-1e-4 || q.z<-1e-4) return;
+  float r2 = dot(q,q); if(r2>1. || r2<RIC*RIC) return;
+  tB = tp; id = 2.; ax = a;
+}
+vec2 voronoi(vec3 x){
+  vec3 i=floor(x), f=fract(x); float d1=8., d2=8., id=0.;
+  for(int kk=-1;kk<=1;kk++) for(int jj=-1;jj<=1;jj++) for(int ii=-1;ii<=1;ii++){
+    vec3 g = vec3(float(ii),float(jj),float(kk));
+    vec3 o = vec3(hash(i+g), hash(i+g+11.3), hash(i+g+27.1));
+    vec3 r = g+o-f; float d = dot(r,r);
+    if(d<d1){ d2=d1; d1=d; id=hash(i+g+5.7); } else if(d<d2){ d2=d; }
+  }
+  return vec2(sqrt(d2)-sqrt(d1), id);
+}
+float ln(float r, float R, float w){ return 1.-smoothstep(w*.5, w*1.6, abs(r-R)); }
+
+vec3 dataColor(float r, vec3 p){
+  vec4 d = texture2D(uProf, vec2(r,.5));
+  if(uMode<1.5) return cmapT(d.r);
+  if(uMode<2.5) return cmapR(d.g);
+  if(uMode<3.5) return cmapV(d.b);
+  if(d.a<.006){ float h = step(.5, fract((p.x+p.y+p.z)*38.)); return vec3(.07,.07,.08)+h*vec3(.06,.06,.07); }
+  return cmapV(d.a);
+}
+
+vec3 natural(vec3 p, float r, out float emis){
+  emis = 0.;
+  vec3 d = p/max(r,1e-4);
+  if(r>RMOHO){
+    float st = fbm3(p*70.);
+    return mix(vec3(.2,.17,.14), vec3(.46,.4,.33), st);
+  }
+  if(r>RCMB){
+    float dn = (1.-r)/(1.-RCMB);
+    vec3 q = d*2.6 + vec3(r*2.2 - uTime*.03);
+    float w = fbm(q);
+    float v = fbm(q*1.7 + vec3(w*2.4) + vec3(0., uTime*.012, 0.));
+    float T = .16 + dn*.62 + (v-.5)*1.15;
+    if(r>R410) T -= .06;
+    if(r<RD2){ float pile = smoothstep(.5,.68, fbm3(d*3.3+vec3(1.3,7.,2.))); T += .14 + .3*pile; }
+    T = mix(T, .03, smoothstep(.972, .994, r));
+    T = clamp(T,0.,1.);
+    emis = smoothstep(.62,1.,T)*.8;
+    return ramp5(T, vec3(.07,.03,.025), vec3(.24,.06,.035), vec3(.55,.14,.05), vec3(.9,.36,.09), vec3(1.,.68,.32));
+  }
+  float s = length(p.xz);
+  float a = uTime*.08 + sin(uTime*.05)*.9/(.2+s);
+  vec3 q = rotY(p, a);
+  float w = fbm(q*4. + vec3(0., uTime*.04, 0.));
+  float f = fbm(q*8. + vec3(w*3.));
+  float band = .5+.5*sin(s*42. - uTime*.5 + w*5.);
+  float h = clamp((f*.9 + band*.22 - .05)*uCore, 0., 1.);
+  emis = 1.;
+  return ramp5(h, vec3(.4,.06,.01), vec3(.78,.2,.02), vec3(1.,.45,.08), vec3(1.,.7,.3), vec3(1.,.92,.7));
+}
+
+vec3 face(vec3 p, vec3 ax, float pix){
+  float r = length(p);
+  float emis; vec3 col;
+  if(uMode<.5) col = natural(p, r, emis);
+  else { col = dataColor(r, p); emis = .5; }
+  float bl = max(ln(r,RMOHO,pix), max(ln(r,R410,pix)*.55, max(ln(r,R660,pix)*.55, ln(r,RD2,pix)*.35)));
+  col = mix(col, col*.3, bl);
+  col = mix(col, vec3(1.,.82,.55), ln(r,RCMB,pix*1.4)*.55);
+  col = mix(col, vec3(.03), ln(r,1.,pix)*.8);
+  float lam = max(dot(ax,uSun),0.);
+  vec3 m = (p - ax*dot(p,ax)) + ax*10.;
+  float e = min(m.x, min(m.y, m.z));
+  float ao = mix(.42, 1., smoothstep(0., .09, e));
+  vec3 lit = col*(.38+.62*lam)*ao;
+  col = mix(lit, col*mix(.7,1.,ao)*1.12, emis);
+  float dp = abs(r-uProbe);
+  col = mix(col, vec3(.82,1.,.96), 1.-smoothstep(pix*.8, pix*2.3, dp));
+  col += vec3(.35,.95,.85)*exp(-dp/(pix*9.))*.32;
+  if(uHover>0.) col += vec3(1.)*(1.-smoothstep(pix*.5, pix*1.5, abs(r-uHover)))*.35;
+  return col;
+}
+
+vec3 innerCore(vec3 p, vec3 rd){
+  vec3 n = p/RIC;
+  vec3 q = rotY(n, uTime*.05);
+  vec2 v = voronoi(q*7.);
+  vec3 col;
+  float lim = max(dot(n,-rd),0.);
+  if(uMode<.5){
+    col = mix(vec3(1.,.76,.4), vec3(1.,.97,.87), v.y);
+    col *= mix(.68, 1., smoothstep(0., .12, v.x));
+    col *= .85 + .3*fbm3(q*6. + vec3(uTime*.2));
+    col *= .55 + .55*pow(lim,.6);
+    col += vec3(1.,.55,.18)*pow(1.-lim,3.)*.55;
+  } else {
+    col = dataColor(RIC*.5, p)*mix(.8,1.,smoothstep(0.,.12,v.x))*(.6+.45*pow(lim,.6));
+  }
+  if(uProbe<RIC) col = mix(col, vec3(.75,1.,.95), .22+.1*sin(uTime*4.));
+  return col;
+}
+
+vec3 surface(vec3 p, vec3 rd){
+  vec3 n = p;
+  float c = fbm(p*1.8 + vec3(4.1,0.,2.3));
+  float c2 = fbm3(p*7. + c);
+  float land = smoothstep(.5,.53, c + (c2-.5)*.12);
+  vec3 ocean = mix(vec3(.01,.045,.11), vec3(.02,.11,.22), smoothstep(.3,.5,c));
+  vec3 ground = mix(vec3(.15,.19,.09), vec3(.38,.31,.19), c2);
+  float ice = smoothstep(.78,.84, abs(p.y) + (c2-.5)*.1);
+  vec3 col = mix(ocean, ground, land); col = mix(col, vec3(.85,.9,.95), ice);
+  float cl = smoothstep(.52,.78, fbm(rotY(p, uTime*.012)*3.5 + vec3(0.,0.,uTime*.004)));
+  float lam = max(dot(n,uSun),0.);
+  col = mix(col, vec3(.95), cl*.85)*(.06 + .94*lam);
+  vec3 h = normalize(uSun - rd);
+  col += vec3(1.,.9,.75)*pow(max(dot(n,h),0.),60.)*(1.-land)*(1.-cl)*lam*.6;
+  float night = smoothstep(.1,-.15, dot(n,uSun));
+  col += vec3(1.,.62,.28)*land*(1.-ice)*(1.-cl)*smoothstep(.62,.8, fbm3(p*24.))*night*.7;
+  float fr = pow(1.-max(dot(n,-rd),0.), 3.);
+  col += vec3(.25,.5,1.)*fr*(.15+.85*smoothstep(-.3,.6,dot(n,uSun)))*.8;
+  return col;
+}
+
+vec3 background(vec3 ro, vec3 rd){
+  vec3 c = mix(vec3(.016,.014,.015), vec3(.034,.029,.031), rd.y*.5+.5);
+  vec3 s = rd*170.; vec3 id = floor(s);
+  if(hash(id)>.9965){ float d = length(fract(s)-.5); c += vec3(.95,.9,.85)*smoothstep(.22,0.,d)*(.3+.7*hash(id+7.)); }
+  float b = dot(ro,rd);
+  if(b<0.){
+    float dm = sqrt(max(dot(ro,ro)-b*b,0.));
+    if(dm>1.){ vec3 cp = normalize(ro-rd*b); c += vec3(.25,.5,1.)*exp(-(dm-1.)*16.)*(.12+.88*smoothstep(-.4,.7,dot(cp,uSun)))*.7; }
+  }
+  return c;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - .5*uRes)/(.5*uRes.y);
+  vec3 ro = uCP, rd = normalize(uCF + uTan*(uv.x*uCR + uv.y*uCU));
+  float tB = 1e9, id = 0.; vec3 ax = vec3(0.);
+  float t = iSph(ro,rd,1.);
+  if(t>0.){ vec3 p = ro+rd*t; if(!(p.x>0. && p.y>0. && p.z>0.)){ tB=t; id=1.; } }
+  plane(ro,rd,vec3(1.,0.,0.),tB,id,ax);
+  plane(ro,rd,vec3(0.,1.,0.),tB,id,ax);
+  plane(ro,rd,vec3(0.,0.,1.),tB,id,ax);
+  float tc = iSph(ro,rd,RIC); if(tc>0. && tc<tB){ tB=tc; id=3.; }
+  vec3 col;
+  if(id<.5) col = background(ro,rd);
+  else {
+    vec3 p = ro+rd*tB;
+    float pix = tB*uTan/(.5*uRes.y);
+    if(id<1.5) col = surface(p,rd);
+    else if(id<2.5) col = face(p,ax,pix);
+    else col = innerCore(p,rd);
+  }
+  col *= 1. - .22*dot(uv*.55, uv*.55);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+const glc = $('#gl'), ov = $('#ov'), octx = ov.getContext('2d');
+const gl = glc.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' });
+let U = null, glOK = false;
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); return null; }
+  return s;
+}
+if (gl) {
+  const vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  if (vs && fs) {
+    const pr = gl.createProgram(); gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+    if (gl.getProgramParameter(pr, gl.LINK_STATUS)) {
+      gl.useProgram(pr);
+      const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      U = {};
+      for (const n of ['uRes', 'uTime', 'uTan', 'uProbe', 'uMode', 'uHover', 'uCore', 'uCP', 'uCR', 'uCU', 'uCF', 'uSun', 'uProf']) U[n] = gl.getUniformLocation(pr, n);
+      // radial profile texture: R=T, G=rho, B=Vp, A=Vs
+      const N = 512, data = new Uint8Array(N * 4);
+      for (let k = 0; k < N; k++) {
+        const r = (k + 0.5) / N, d = RE * (1 - r), P = prof(d), v = velAt(d);
+        data[k * 4] = clamp(P.T / 6000, 0, 1) * 255;
+        data[k * 4 + 1] = clamp((P.rho - 2) / 12, 0, 1) * 255;
+        data[k * 4 + 2] = clamp((v.vp - 5) / 9, 0, 1) * 255;
+        data[k * 4 + 3] = v.vs <= 0 ? 0 : Math.max(3, clamp(v.vs / 7.5, 0, 1) * 255);
+      }
+      const tex = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, N, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.uniform1i(U.uProf, 0);
+      glOK = true;
+    } else console.error(gl.getProgramInfoLog(pr));
+  }
+}
+if (!glOK) {
+  const m = document.createElement('div'); m.className = 'nogl';
+  m.textContent = 'Bu tarayıcı WebGL desteklemiyor; 3B kesit çizilemedi. Sismik dalgalar ve sonda yine çalışır.';
+  $('#viewCore').appendChild(m);
+}
+
+/* ---------- camera & geometry (mirrors the shader) ---------- */
+const V = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]), norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+const TANF = Math.tan(19 * Math.PI / 180);
+const SUN = V.norm([0.6, 0.62, 0.78]);
+const cam = { yaw: Math.PI / 4, pitch: 0.42, dist: 3.55, pos: [0, 0, 0], F: [0, 0, 0], R: [0, 0, 0], U: [0, 0, 0] };
+function updateCam() {
+  const cp = Math.cos(cam.pitch);
+  cam.pos = [Math.sin(cam.yaw) * cp * cam.dist, Math.sin(cam.pitch) * cam.dist, Math.cos(cam.yaw) * cp * cam.dist];
+  cam.F = V.norm(V.mul(cam.pos, -1));
+  cam.R = V.norm(V.cross(cam.F, [0, 1, 0]));
+  cam.U = V.cross(cam.R, cam.F);
+}
+function sph(ro, rd, r) { const b = V.dot(ro, rd), c = V.dot(ro, ro) - r * r, h = b * b - c; return h < 0 ? -1 : -b - Math.sqrt(h); }
+function sceneHit(ro, rd) {
+  let tB = 1e9, id = 0, ax = -1;
+  let t = sph(ro, rd, 1);
+  if (t > 0) { const p = V.add(ro, V.mul(rd, t)); if (!(p[0] > 0 && p[1] > 0 && p[2] > 0)) { tB = t; id = 1; } }
+  for (let k = 0; k < 3; k++) {
+    if (Math.abs(rd[k]) < 1e-9) continue;
+    const tp = -ro[k] / rd[k]; if (tp <= 0 || tp >= tB) continue;
+    const p = V.add(ro, V.mul(rd, tp)); p[k] = 0;
+    if (p[0] < -1e-4 || p[1] < -1e-4 || p[2] < -1e-4) continue;
+    const r2 = V.dot(p, p); if (r2 > 1 || r2 < RIC * RIC) continue;
+    tB = tp; id = 2; ax = k;
+  }
+  t = sph(ro, rd, RIC); if (t > 0 && t < tB) { tB = t; id = 3; }
+  return { t: tB, id, ax, p: id ? V.add(ro, V.mul(rd, tB)) : null };
+}
+let viewW = 1, viewH = 1;
+function screenRay(mx, my) {
+  const ux = (mx - viewW / 2) / (viewH / 2), uy = -(my - viewH / 2) / (viewH / 2);
+  return V.norm(V.add(cam.F, V.add(V.mul(cam.R, ux * TANF), V.mul(cam.U, uy * TANF))));
+}
+function project(P) {
+  const d = V.sub(P, cam.pos), z = V.dot(d, cam.F);
+  if (z <= 0.05) return null;
+  return [viewW / 2 + V.dot(d, cam.R) / (z * TANF) * viewH / 2, viewH / 2 - V.dot(d, cam.U) / (z * TANF) * viewH / 2, z];
+}
+function visible(P) {
+  const d = V.sub(P, cam.pos), L = V.len(d);
+  const h = sceneHit(cam.pos, V.mul(d, 1 / L));
+  return h.id === 0 || h.t > L - 2e-3;
+}
+
+/* =========================================================
+   State & UI
+   ========================================================= */
+const state = { view: 'core', mode: 0, field: true, labels: true, depth: 0, hoverR: -1, tween: null, lastInteract: -99, time: 0 };
+
+const MODE_LEGEND = [
+  null,
+  { ttl: 'Sıcaklık', grad: '#0a0508,#590d0a,#cc330f,#ff9933,#fff5d9', a: '0 K', b: '6.000 K' },
+  { ttl: 'Yoğunluk', grad: '#0a1424,#1a4766,#338c8c,#a8d48c,#f7f2cc', a: '2 g/cm³', b: '14 g/cm³' },
+  { ttl: 'P dalgası hızı', grad: '#120d2e,#4d2473,#b34085,#f28566,#fce6a6', a: '5 km/s', b: '14 km/s' },
+  { ttl: 'S dalgası hızı · taralı: sıvı, S yok', grad: '#120d2e,#4d2473,#b34085,#f28566,#fce6a6', a: '0 km/s', b: '7,5 km/s' },
+];
+function renderLegend() {
+  const el = $('#legend');
+  const m = MODE_LEGEND[state.mode];
+  if (!m) {
+    const cur = layerAt(state.depth);
+    el.innerHTML = '<div class="ttl">Katmanlar</div>' + LAYERS.map(L =>
+      `<div class="row${L === cur ? ' on' : ''}"><span class="sw" style="background:${L.col}"></span>${L.name}<span style="color:var(--ink-3)">&nbsp;${fmt(L.d0)}–${fmt(L.d1)} km</span></div>`).join('');
+  } else {
+    el.innerHTML = `<div class="ttl">${m.ttl}</div><div class="grad" style="background:linear-gradient(90deg,${m.grad})"></div><div class="ends"><span>${m.a}</span><span>${m.b}</span></div>`;
+  }
+}
+
+// chips
+const CHIPS = [['Yüzey', 0], ['Moho', 35], ['410', 410], ['660', 660], ['Gutenberg', 2891], ['Lehmann', 5150], ['Merkez', 6371]];
+$('#chips').innerHTML = CHIPS.map(([n, d]) => `<button class="chip" type="button" data-d="${d}">${n}<span>${fmt(d)}</span></button>`).join('');
+$('#chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) tweenTo(+b.dataset.d, 1.1); });
+
+const el = {
+  depthVal: $('#depthVal'), layerName: $('#layerName'), layerSw: $('#layerSw'), layerState: $('#layerState'),
+  depth: $('#depth'), desc: $('#layerDesc'), cmp: $('#compare'),
+  sT: $('#sT'), sT2: $('#sT2'), sP: $('#sP'), sP2: $('#sP2'), sRho: $('#sRho'), sRho2: $('#sRho2'),
+  sG: $('#sG'), sG2: $('#sG2'), sVp: $('#sVp'), sVp2: $('#sVp2'), sVs: $('#sVs'), sVs2: $('#sVs2'),
+};
+let lastLayer = null;
+function setDepth(d, fromSlider) {
+  d = clamp(d, 0, RE); state.depth = d;
+  const di = Math.round(d);
+  if (!fromSlider) el.depth.value = di;
+  el.depthVal.textContent = fmt(di);
+  const L = layerAt(d), P = prof(d), v = velAt(d);
+  if (L !== lastLayer) {
+    el.layerName.textContent = L.name; el.layerSw.style.background = L.col;
+    el.layerState.textContent = L.state; el.layerState.classList.toggle('liquid', L.state === 'Sıvı');
+    el.desc.textContent = L.desc; lastLayer = L;
+    if (state.mode === 0) renderLegend();
+  }
+  el.sT.innerHTML = `${fmt(P.T)}<small>K</small>`; el.sT2.textContent = `${fmt(P.T - 273.15)} °C`;
+  el.sP.innerHTML = `${fmt(P.P, P.P < 10 ? 2 : 1)}<small>GPa</small>`;
+  const atm = P.P * 9869.2;
+  el.sP2.textContent = atm >= 1e6 ? `${fmt(atm / 1e6, 2)} milyon atm` : `${fmt(atm)} atm`;
+  el.sRho.innerHTML = `${fmt(P.rho, 2)}<small>g/cm³</small>`; el.sRho2.textContent = `suyun ${fmt(P.rho, 1)} katı`;
+  el.sG.innerHTML = `${fmt(P.g, 2)}<small>m/s²</small>`; el.sG2.textContent = `yüzeyin %${fmt(P.g / 9.82 * 100)}'i`;
+  el.sVp.innerHTML = `${fmt(v.vp, 2)}<small>km/s</small>`; el.sVp2.textContent = `sesin havadakinden ${fmt(v.vp * 1000 / 343)} kat hızlı`;
+  if (v.vs > 0) { el.sVs.innerHTML = `${fmt(v.vs, 2)}<small>km/s</small>`; el.sVs2.textContent = 'katı: kesme dalgası geçer'; }
+  else { el.sVs.innerHTML = '0<small>km/s</small>'; el.sVs2.textContent = 'sıvı: S dalgası yok'; }
+  const tons = P.P * 1e9 * 1e-4 / 9.81 / 1000;
+  const sunPct = P.T / 5772 * 100;
+  let c = '';
+  if (P.P > 0.05) c += `Her cm²'ye <b>${fmt(tons, tons < 10 ? 1 : 0)} ton</b> yük biniyor. `;
+  else c += 'Bir atmosferlik hava basıncı; sonda henüz yüzeyde. ';
+  if (P.T > 3000) c += `Güneş'in yüzey sıcaklığının <b>%${fmt(sunPct)}</b>'i.`;
+  else if (P.T > 1400) c += `Çeliği eritecek kadar sıcak (${fmt(P.T - 273)} °C), ama basınç kayayı katı tutuyor.`;
+  else if (d > 0.5) c += `Derinlere indikçe her kilometrede ortalama ~${fmt((P.T - 288) / Math.max(d, 1), 1)} K ısınıyor.`;
+  el.cmp.innerHTML = c;
+  drawProfile();
+}
+el.depth.addEventListener('input', () => { state.tween = null; updateDescendBtn(); setDepth(+el.depth.value, true); });
+
+function tweenTo(to, dur) { state.tween = { from: state.depth, to, t: 0, dur }; updateDescendBtn(); }
+const descendBtn = $('#descend');
+function updateDescendBtn() { descendBtn.textContent = state.tween && state.tween.dur > 3 ? 'Durdur' : 'Merkeze in ↓'; }
+descendBtn.addEventListener('click', () => {
+  if (state.tween && state.tween.dur > 3) { state.tween = null; updateDescendBtn(); return; }
+  const from = state.depth >= RE - 1 ? 0 : state.depth;
+  if (from === 0) setDepth(0);
+  tweenTo(RE, 20 * (RE - from) / RE + 2);
+});
+$('#surface').addEventListener('click', () => tweenTo(0, 1.6));
+
+/* ---------- profile chart ---------- */
+const profCv = $('#profile'), profCtx = profCv.getContext('2d');
+const PCOLS = [
+  { label: 'SICAKLIK', range: '0–6.000 K', max: 6000, color: '#ff7a33', get: d => prof(d).T },
+  { label: 'BASINÇ', range: '0–400 GPa', max: 400, color: '#ffb35c', get: d => prof(d).P },
+  { label: 'YOĞUNLUK', range: '0–14 g/cm³', max: 14, color: '#ece5d8', get: d => prof(d).rho },
+  { label: 'HIZ', range: '0–14 km/s', max: 14, color: '#ffc56b', get: d => velAt(d).vp, get2: d => velAt(d).vs },
+];
+const PCACHE = PCOLS.map(c => { const a = []; for (let d = 0; d <= RE; d += 6) a.push([d, c.get(d), c.get2 ? c.get2(d) : 0]); a.push([RE, c.get(RE), c.get2 ? c.get2(RE) : 0]); return a; });
+function sizeCanvas(cv) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [w, h, ctx];
+}
+const PTOP = 34, PBOT = 8;
+function drawProfile() {
+  const [W, H, g] = sizeCanvas(profCv); if (W < 10) return;
+  g.clearRect(0, 0, W, H);
+  const top = PTOP, h = H - PTOP - PBOT, y = d => top + d / RE * h;
+  LAYERS.forEach((L, i) => {
+    g.fillStyle = i % 2 ? 'rgba(236,229,216,0.035)' : 'rgba(0,0,0,0)';
+    g.fillRect(0, y(L.d0), W, y(L.d1) - y(L.d0));
+    g.fillStyle = L.col; g.fillRect(0, y(L.d0), 2, Math.max(1, y(L.d1) - y(L.d0)));
+  });
+  g.strokeStyle = 'rgba(236,229,216,0.10)'; g.lineWidth = 1;
+  for (const L of LAYERS) { g.beginPath(); g.moveTo(0, y(L.d1) + .5); g.lineTo(W, y(L.d1) + .5); g.stroke(); }
+  const gap = 10, x0base = 8, cw = (W - x0base - gap * 3) / 4;
+  const pd = state.depth, py = y(pd);
+  PCOLS.forEach((c, i) => {
+    const x0 = x0base + i * (cw + gap);
+    g.fillStyle = '#6f665a'; g.font = '500 9.5px "IBM Plex Mono", monospace'; g.textBaseline = 'alphabetic';
+    g.fillText(c.label, x0, 12); g.fillStyle = '#4f473e'; g.fillText(c.range, x0, 24);
+    g.strokeStyle = 'rgba(236,229,216,0.14)'; g.beginPath(); g.moveTo(x0 + .5, top); g.lineTo(x0 + .5, top + h); g.stroke();
+    const pts = PCACHE[i];
+    const curve = (k, color, dash) => {
+      g.strokeStyle = color; g.lineWidth = 1.5; g.setLineDash(dash || []);
+      g.beginPath(); pts.forEach((p, j) => { const X = x0 + p[k] / c.max * cw, Y = y(p[0]); j ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); g.setLineDash([]);
+    };
+    curve(1, c.color);
+    if (c.get2) curve(2, '#93b6ff', [3, 3]);
+    const vx = x0 + c.get(pd) / c.max * cw;
+    g.fillStyle = c.color; g.beginPath(); g.arc(vx, py, 3, 0, TAU); g.fill();
+    if (c.get2) { const v2 = c.get2(pd); g.fillStyle = '#93b6ff'; g.beginPath(); g.arc(x0 + v2 / c.max * cw, py, 3, 0, TAU); g.fill(); }
+  });
+  g.strokeStyle = 'rgba(191,247,236,0.85)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, py + .5); g.lineTo(W, py + .5); g.stroke();
+}
+let profDrag = false;
+const profPick = e => { const r = profCv.getBoundingClientRect(); const h = r.height - PTOP - PBOT; state.tween = null; updateDescendBtn(); setDepth((e.clientY - r.top - PTOP) / h * RE); };
+profCv.addEventListener('pointerdown', e => { profDrag = true; profCv.setPointerCapture(e.pointerId); profPick(e); });
+profCv.addEventListener('pointermove', e => { if (profDrag) profPick(e); });
+profCv.addEventListener('pointerup', () => { profDrag = false; });
+
+/* ---------- top bar ---------- */
+const tabCore = $('#tabCore'), tabSeis = $('#tabSeis');
+function setView(v) {
+  state.view = v;
+  tabCore.setAttribute('aria-pressed', v === 'core'); tabSeis.setAttribute('aria-pressed', v === 'seis');
+  $('#viewCore').hidden = v !== 'core'; $('#viewSeis').hidden = v !== 'seis';
+  $('#coreCtl').hidden = v !== 'core'; $('#seisCtl').hidden = v !== 'seis';
+  if (v === 'seis') { sv.laidOut = false; } else { needResize = true; }
+}
+tabCore.addEventListener('click', () => setView('core'));
+tabSeis.addEventListener('click', () => setView('seis'));
+$('#modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.mode = +b.dataset.mode;
+  for (const x of $('#modeSeg').querySelectorAll('button')) x.setAttribute('aria-pressed', x === b);
+  renderLegend();
+});
+$('#optField').addEventListener('change', e => state.field = e.target.checked);
+$('#optLabels').addEventListener('change', e => state.labels = e.target.checked);
+
+/* ---------- 3D interaction ---------- */
+const tip = $('#tip');
+const pointers = new Map();
+let dragMoved = 0, pinchD = 0;
+function pickAt(mx, my) { return sceneHit(cam.pos, screenRay(mx, my)); }
+function hoverAt(mx, my) {
+  const h = pickAt(mx, my);
+  if (h.id >= 2) {
+    const r = h.id === 3 ? RIC : V.len(h.p);
+    const d = RE * (1 - r);
+    state.hoverR = r;
+    tip.hidden = false;
+    tip.innerHTML = `<b>${fmt(d)} km</b> · ${h.id === 3 ? 'İç çekirdek yüzeyi' : layerAt(d).name}<br>${fmt(prof(d).T)} K · ${fmt(prof(d).P, 1)} GPa`;
+    const tx = Math.min(mx + 14, viewW - tip.offsetWidth - 8), ty = Math.min(my + 14, viewH - tip.offsetHeight - 8);
+    tip.style.transform = `translate(${tx}px,${ty}px)`;
+  } else if (h.id === 1) {
+    state.hoverR = -1; tip.hidden = false; tip.innerHTML = '<b>Yüzey</b> · 0 km';
+    tip.style.transform = `translate(${Math.min(mx + 14, viewW - tip.offsetWidth - 8)}px,${Math.min(my + 14, viewH - tip.offsetHeight - 8)}px)`;
+  } else { state.hoverR = -1; tip.hidden = true; }
+}
+const localXY = e => { const r = ov.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+ov.addEventListener('pointerdown', e => {
+  ov.setPointerCapture(e.pointerId); pointers.set(e.pointerId, localXY(e)); dragMoved = 0;
+  state.lastInteract = state.time; ov.classList.add('dragging');
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinchD = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+});
+ov.addEventListener('pointermove', e => {
+  const p = localXY(e);
+  if (!pointers.has(e.pointerId)) { if (e.pointerType === 'mouse') hoverAt(p[0], p[1]); return; }
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, p);
+  state.lastInteract = state.time;
+  if (pointers.size === 1) {
+    const dx = p[0] - prev[0], dy = p[1] - prev[1];
+    dragMoved += Math.abs(dx) + Math.abs(dy);
+    cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.006, -1.35, 1.35);
+    tip.hidden = true; state.hoverR = -1;
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinchD > 0) cam.dist = clamp(cam.dist * pinchD / d, 1.7, 8); pinchD = d; dragMoved += 10;
+  }
+});
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  const p = localXY(e);
+  if (pointers.size === 1 && dragMoved < 6) {
+    const h = pickAt(p[0], p[1]);
+    if (h.id >= 2) { const r = h.id === 3 ? RIC : V.len(h.p); tweenTo(RE * (1 - r), 0.9); }
+    else if (h.id === 1) tweenTo(0, 0.9);
+  }
+  pointers.delete(e.pointerId); if (pointers.size < 2) pinchD = 0;
+  if (!pointers.size) ov.classList.remove('dragging');
+}
+ov.addEventListener('pointerup', endPointer);
+ov.addEventListener('pointercancel', endPointer);
+ov.addEventListener('pointerleave', () => { if (!pointers.size) { tip.hidden = true; state.hoverR = -1; } });
+ov.addEventListener('wheel', e => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.001), 1.7, 8); state.lastInteract = state.time; }, { passive: false });
+
+/* ---------- resize ---------- */
+let needResize = true, glScale = Math.min(window.devicePixelRatio || 1, 1.5), maxScale = glScale, ovDpr = 1;
+const ro = new ResizeObserver(() => { needResize = true; sv.laidOut = false; drawProfile(); });
+ro.observe($('#viewCore')); ro.observe($('#viewSeis')); ro.observe(document.querySelector('.side'));
+function resizeCore() {
+  const v = $('#viewCore'); viewW = v.clientWidth || 1; viewH = v.clientHeight || 1;
+  glc.width = Math.max(1, Math.round(viewW * glScale)); glc.height = Math.max(1, Math.round(viewH * glScale));
+  ovDpr = Math.min(window.devicePixelRatio || 1, 2);
+  ov.width = Math.round(viewW * ovDpr); ov.height = Math.round(viewH * ovDpr);
+  if (glOK) gl.viewport(0, 0, glc.width, glc.height);
+  needResize = false;
+}
+
+/* ---------- overlay: field lines, labels, probe tag ---------- */
+const FIELD_L = [1.3, 1.75, 2.4, 3.3, 4.6];
+const FIELD_PHI = 8;
+const LABELS = [
+  { n: 'Kabuk', d: [0, 35], r: 0.9972 },
+  { n: 'Üst manto', d: [35, 410], r: 0.965 },
+  { n: 'Geçiş zonu', d: [410, 660], r: 0.916 },
+  { n: 'Alt manto', d: [660, 2700], r: 0.74 },
+  { n: 'D″', d: [2700, 2891], r: 0.561 },
+  { n: 'Dış çekirdek · sıvı', d: [2891, 5150], r: 0.37 },
+  { n: 'İç çekirdek · katı', d: [5150, 6371], r: -1 },
+];
+const LA = 28 * Math.PI / 180;
+function drawOverlay(t) {
+  const g = octx; g.setTransform(ovDpr, 0, 0, ovDpr, 0, 0); g.clearRect(0, 0, viewW, viewH);
+  if (state.field) drawField(g, t);
+  drawAxis(g);
+  if (state.labels) drawLabels(g);
+  drawProbeTag(g);
+}
+function drawAxis(g) {
+  g.font = '600 11px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const [s, txt] of [[1, 'K'], [-1, 'G']]) {
+    const a = project([0, s * 1.0, 0]), b = project([0, s * 1.22, 0]), l = project([0, s * 1.3, 0]);
+    if (!a || !b || !l) continue;
+    if (visible([0, s * 1.001, 0])) {
+      g.strokeStyle = 'rgba(236,229,216,0.45)'; g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    if (visible([0, s * 1.3, 0])) { g.fillStyle = 'rgba(236,229,216,0.7)'; g.fillText(txt, l[0], l[1]); }
+  }
+  g.textAlign = 'left';
+}
+function drawField(g, t) {
+  const st = dyn.strength, pol = dyn.pol, weak = 1 - st;
+  const tilt = 0.19 + 0.05 * Math.sin(t * 0.05) + weak * 0.5 * Math.sin(t * 0.9);
+  const az = t * 0.02 + weak * 1.5 * Math.sin(t * 0.37);
+  const m = [Math.sin(tilt) * Math.cos(az), Math.cos(tilt), Math.sin(tilt) * Math.sin(az)];
+  const e1 = V.norm(V.cross(m, [0, 0, 1])), e2 = V.cross(m, e1);
+  const rgb = pol > 0 ? '140,205,255' : '255,140,190';
+  const scale = 0.45 + 0.55 * st;
+  const under = new Path2D(), flow = new Path2D();
+  for (let li = 0; li < FIELD_L.length; li++) {
+    const Ls = 1 + (FIELD_L[li] - 1) * scale;
+    const th0 = Math.asin(Math.sqrt(1 / Ls));
+    for (let j = 0; j < FIELD_PHI; j++) {
+      const phi = j / FIELD_PHI * TAU + li * 0.35;
+      const cph = Math.cos(phi), sph_ = Math.sin(phi);
+      let pen = false; const N = 44;
+      for (let i = 0; i <= N; i++) {
+        let th = th0 + (Math.PI - 2 * th0) * i / N;
+        let r = Ls * Math.sin(th) ** 2;
+        if (weak > 0.05) { th += weak * 0.22 * Math.sin(i * 0.55 + t * 1.7 + phi * 3); r *= 1 + weak * 0.18 * Math.sin(i * 0.8 - t * 1.3 + li); }
+        if (r < 1.004) { pen = false; continue; }
+        const s = Math.sin(th), c = Math.cos(th);
+        const P = [r * (s * (cph * e1[0] + sph_ * e2[0]) + c * m[0]), r * (s * (cph * e1[1] + sph_ * e2[1]) + c * m[1]), r * (s * (cph * e1[2] + sph_ * e2[2]) + c * m[2])];
+        const q = project(P);
+        if (!q || !visible(P)) { pen = false; continue; }
+        if (pen) { under.lineTo(q[0], q[1]); flow.lineTo(q[0], q[1]); } else { under.moveTo(q[0], q[1]); flow.moveTo(q[0], q[1]); pen = true; }
+      }
+    }
+  }
+  g.lineWidth = 1; g.strokeStyle = `rgba(${rgb},${0.08 + 0.14 * st})`; g.stroke(under);
+  g.setLineDash([2, 10]); g.lineDashOffset = (RM ? 0 : t * 18) * pol;
+  g.lineWidth = 1.6; g.strokeStyle = `rgba(${rgb},${0.3 + 0.6 * st})`; g.stroke(flow);
+  g.setLineDash([]);
+}
+function tagBox(g, x, y, lines, align, color) {
+  g.font = '600 12px "IBM Plex Sans", system-ui, sans-serif';
+  const w1 = g.measureText(lines[0]).width;
+  g.font = '500 10px "IBM Plex Mono", monospace';
+  const w2 = lines[1] ? g.measureText(lines[1]).width : 0;
+  const w = Math.max(w1, w2) + 12, h = lines[1] ? 32 : 20;
+  const bx = align === 'right' ? x - w : x, by = y - h / 2;
+  g.fillStyle = 'rgba(11,10,9,0.74)'; g.fillRect(bx, by, w, h);
+  g.fillStyle = color || '#ece5d8'; g.font = '600 12px "IBM Plex Sans", system-ui, sans-serif'; g.textBaseline = 'alphabetic';
+  g.fillText(lines[0], bx + 6, by + 14);
+  if (lines[1]) { g.fillStyle = '#a89d8d'; g.font = '500 10px "IBM Plex Mono", monospace'; g.fillText(lines[1], bx + 6, by + 27); }
+}
+function drawLabels(g) {
+  const items = [];
+  for (const L of LABELS) {
+    const P = L.r < 0 ? V.mul(V.norm([1, 1, 1]), RIC) : [0, L.r * Math.sin(LA), L.r * Math.cos(LA)];
+    const s = project(P); if (!s || !visible(P)) continue;
+    items.push({ L, s });
+  }
+  items.sort((a, b) => a.s[1] - b.s[1]);
+  let last = -1e9;
+  for (const it of items) { it.ly = Math.max(it.s[1], last + 36); last = it.ly; }
+  for (const it of items) {
+    const [ax, ay] = it.s, lx = Math.max(ax - 40, 96);
+    g.strokeStyle = 'rgba(236,229,216,0.5)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(lx + 6, it.ly); g.stroke();
+    g.fillStyle = '#ece5d8'; g.beginPath(); g.arc(ax, ay, 2.2, 0, TAU); g.fill();
+    tagBox(g, lx, it.ly, [it.L.n, `${fmt(it.L.d[0])}–${fmt(it.L.d[1])} km`], 'right');
+  }
+}
+function drawProbeTag(g) {
+  const r = 1 - state.depth / RE, b = 26 * Math.PI / 180;
+  const P = r < RIC ? V.mul(V.norm([1, 0.35, 1]), RIC) : [r * Math.cos(b), r * Math.sin(b), 0];
+  const s = project(P); if (!s || !visible(P)) return;
+  const lx = Math.min(s[0] + 44, viewW - 140), ly = s[1] - 30;
+  g.strokeStyle = 'rgba(191,247,236,0.9)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(lx - 2, ly); g.stroke();
+  g.fillStyle = '#bff7ec'; g.beginPath(); g.arc(s[0], s[1], 3.2, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(191,247,236,0.35)'; g.beginPath(); g.arc(s[0], s[1], 7 + 2 * Math.sin(state.time * 3), 0, TAU); g.stroke();
+  const P0 = prof(state.depth);
+  tagBox(g, lx, ly, [`Sonda · ${fmt(state.depth)} km`, `${fmt(P0.T)} K · ${fmt(P0.P, 1)} GPa`], 'left', '#bff7ec');
+}
+
+/* ---------- toast on reversal ---------- */
+const toast = $('#toast'); let toastT = 0, lastToast = -99;
+onReversal = () => {
+  if (state.time - lastToast < 8) return; lastToast = state.time;
+  toast.textContent = dyn.pol > 0 ? 'Alan ters döndü · normal polarite' : 'Alan ters döndü · ters polarite';
+  toast.style.background = dyn.pol > 0 ? 'rgba(140,205,255,.16)' : 'rgba(255,140,190,.16)';
+  toast.style.color = dyn.pol > 0 ? 'var(--norm)' : 'var(--rev)';
+  toast.style.border = `1px solid ${dyn.pol > 0 ? 'var(--norm)' : 'var(--rev)'}`;
+  toast.classList.add('show'); toastT = 3.2;
+};
+
+/* =========================================================
+   Dynamo panel
+   ========================================================= */
+const stripesCv = $('#stripes'), seriesCv = $('#series');
+$('#dynSpeed').addEventListener('input', e => dyn.speed = +e.target.value);
+$('#flip').addEventListener('click', () => { dyn.x = -dyn.x; dyn.y = -dyn.y; }); // (x,y,z)→(−x,−y,z) is a symmetry of the equations
+const COLW = 1.5;
+function drawStripes() {
+  const [W, H, g] = sizeCanvas(stripesCv); if (W < 10) return;
+  g.clearRect(0, 0, W, H);
+  const mid = Math.round(W / 2), sy = 50, sh = H - sy - 16, n = Math.min(dyn.hn, Math.ceil(mid / COLW) + 1);
+  g.fillStyle = '#1a1917'; g.fillRect(0, sy, W, sh);
+  for (let k = 0; k < n; k++) {
+    const v = histAt(k);
+    g.fillStyle = v >= 0 ? '#e6dfcf' : '#0e0f11';
+    g.fillRect(mid + k * COLW, sy, COLW + 0.4, sh);
+    g.fillRect(mid - (k + 1) * COLW, sy, COLW + 0.4, sh);
+  }
+  const grad = g.createLinearGradient(0, sy, 0, sy + sh);
+  grad.addColorStop(0, 'rgba(0,0,0,0.25)'); grad.addColorStop(.5, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+  g.fillStyle = grad; g.fillRect(0, sy, W, sh);
+  const pm = 26, pa = 18;
+  g.strokeStyle = 'rgba(236,229,216,0.12)'; g.beginPath(); g.moveTo(0, pm + .5); g.lineTo(W, pm + .5); g.stroke();
+  g.strokeStyle = '#ffb35c'; g.lineWidth = 1.2; g.beginPath();
+  for (let k = n - 1; k >= 0; k--) { const X = mid - (k + 0.5) * COLW, Y = pm - histAt(k) / dyn.xmax * pa; k === n - 1 ? g.moveTo(X, Y) : g.lineTo(X, Y); }
+  for (let k = 0; k < n; k++) g.lineTo(mid + (k + 0.5) * COLW, pm - histAt(k) / dyn.xmax * pa);
+  g.stroke();
+  g.fillStyle = '#ff6b24'; g.fillRect(mid - 1, sy - 6, 2, sh + 6);
+  g.font = '500 9.5px "IBM Plex Mono", monospace'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#6f665a'; g.fillText('MANYETİK ANOMALİ', 0, 10);
+  g.textAlign = 'center'; g.fillStyle = '#ff6b24'; g.fillText('SIRT', mid, H - 3);
+  g.fillStyle = '#6f665a'; g.textAlign = 'left'; g.fillText('← daha yaşlı', 0, H - 3);
+  g.textAlign = 'right'; g.fillText('daha yaşlı →', W, H - 3); g.textAlign = 'left';
+}
+function drawSeries() {
+  const [W, H, g] = sizeCanvas(seriesCv); if (W < 10) return;
+  g.clearRect(0, 0, W, H);
+  const n = Math.min(dyn.hn, Math.floor(W / COLW)), mid = H / 2, amp = H / 2 - 6;
+  g.strokeStyle = 'rgba(236,229,216,0.15)'; g.beginPath(); g.moveTo(0, mid + .5); g.lineTo(W, mid + .5); g.stroke();
+  for (const [sign, col] of [[1, 'rgba(140,205,255,0.22)'], [-1, 'rgba(255,140,190,0.22)']]) {
+    g.fillStyle = col; g.beginPath(); g.moveTo(W, mid);
+    for (let k = 0; k < n; k++) { const v = histAt(k); g.lineTo(W - k * COLW, mid - (sign * v > 0 ? v : 0) / dyn.xmax * amp); }
+    g.lineTo(W - (n - 1) * COLW, mid); g.closePath(); g.fill();
+  }
+  g.strokeStyle = '#ece5d8'; g.lineWidth = 1.2; g.beginPath();
+  for (let k = 0; k < n; k++) { const X = W - k * COLW, Y = mid - histAt(k) / dyn.xmax * amp; k ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+  g.stroke();
+  g.font = '500 9.5px "IBM Plex Mono", monospace'; g.fillStyle = '#6f665a';
+  g.fillText('DİNAMO AKIMI', 0, 10); g.textAlign = 'right'; g.fillText('şimdi', W, H - 2); g.textAlign = 'left';
+}
+let dynUiT = 0;
+function updateDynUi() {
+  const p = $('#pol'); p.dataset.pol = dyn.pol > 0 ? 'n' : 'r';
+  $('#polV').textContent = dyn.pol > 0 ? 'Normal' : 'Ters';
+  $('#revN').textContent = fmt(dyn.rev);
+  $('#dipV').textContent = `%${fmt(dyn.strength * 100)}`;
+}
+
+/* =========================================================
+   Seismic view
+   ========================================================= */
+const sv = { cv: $('#seis'), base: document.createElement('canvas'), trail: document.createElement('canvas'),
+  W: 1, H: 1, dpr: 1, cx: 0, cy: 0, R: 1, ch: null, T: 0, speed: 110, showP: true, showS: true, hold: 0,
+  arrivals: [], stations: [], laidOut: false };
+for (let d = 0; d <= 180; d += 10) sv.stations.push({ d, fp: 0, fs: 0 });
+$('#quake').addEventListener('click', seisRestart);
+$('#optP').addEventListener('change', e => { sv.showP = e.target.checked; rebuildTrails(); });
+$('#optS').addEventListener('change', e => { sv.showS = e.target.checked; rebuildTrails(); });
+$('#seisSpeed').addEventListener('input', e => sv.speed = +e.target.value);
+const sxy = (x, y, side) => [sv.cx + side * x * sv.R, sv.cy - y * sv.R];
+
+function seisLayout() {
+  const c = sv.cv; sv.W = c.clientWidth || 1; sv.H = c.clientHeight || 1; sv.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  c.width = Math.round(sv.W * sv.dpr); c.height = Math.round(sv.H * sv.dpr);
+  const W = sv.W, H = sv.H, topR = 84, botR = 110;
+  if (W >= H * 1.3 && W - H > 260) {
+    sv.R = Math.max(60, Math.min((H - topR - botR) / 2 + 30, W * 0.3));
+    sv.cx = 70 + sv.R; sv.cy = topR + (H - topR - botR + 60) / 2;
+    sv.ch = { x0: sv.cx + sv.R + 90, x1: W - 30, y0: sv.cy - sv.R * 0.75, y1: sv.cy + sv.R * 0.75 };
+    if (sv.ch.x1 - sv.ch.x0 < 160) sv.ch = null;
+  } else {
+    sv.R = Math.max(60, Math.min(W * 0.36, H * 0.26));
+    sv.cx = W / 2; sv.cy = topR + 30 + sv.R;
+    sv.ch = { x0: 64, x1: W - 24, y0: sv.cy + sv.R + 56, y1: H - botR - 40 };
+    if (sv.ch.y1 - sv.ch.y0 < 70) sv.ch = null;
+  }
+  sv.trail.width = c.width; sv.trail.height = c.height;
+  drawSeisBase();
+  rebuildTrails();
+  sv.laidOut = true;
+}
+function drawSeisBase() {
+  const b = sv.base; b.width = sv.cv.width; b.height = sv.cv.height;
+  const g = b.getContext('2d'); g.setTransform(sv.dpr, 0, 0, sv.dpr, 0, 0);
+  const { cx, cy, R } = sv;
+  g.fillStyle = '#0b0a09'; g.fillRect(0, 0, sv.W, sv.H);
+  const circ = (r, fill) => { g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fillStyle = fill; g.fill(); };
+  circ(R, '#2b251f');
+  let gr = g.createRadialGradient(cx, cy, R * RCMB, cx, cy, R * 0.9945);
+  gr.addColorStop(0, '#3a170c'); gr.addColorStop(0.1, '#2c130b'); gr.addColorStop(1, '#1a0f0b'); circ(R * 0.9945, gr);
+  gr = g.createRadialGradient(cx, cy, R * RIC, cx, cy, R * RCMB);
+  gr.addColorStop(0, '#50250a'); gr.addColorStop(1, '#351706'); circ(R * RCMB, gr);
+  gr = g.createRadialGradient(cx, cy, 0, cx, cy, R * RIC);
+  gr.addColorStop(0, '#6a5532'); gr.addColorStop(1, '#4a3a22'); circ(R * RIC, gr);
+  g.setLineDash([2, 4]); g.strokeStyle = 'rgba(236,229,216,0.10)'; g.lineWidth = 1;
+  for (const rr of [5961 / RE, 5711 / RE]) { g.beginPath(); g.arc(cx, cy, R * rr, 0, TAU); g.stroke(); }
+  g.setLineDash([]);
+  g.strokeStyle = 'rgba(255,170,90,0.35)'; g.beginPath(); g.arc(cx, cy, R * RCMB, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,230,180,0.35)'; g.beginPath(); g.arc(cx, cy, R * RIC, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(236,229,216,0.35)'; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.stroke();
+  // layer names along the lower axis
+  g.font = '500 10px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(236,229,216,0.32)';
+  g.fillText('MANTO', cx, cy + R * 0.78);
+  g.fillText('DIŞ ÇEKİRDEK · SIVI', cx, cy + R * 0.38);
+  g.fillText('İÇ ÇEKİRDEK', cx, cy);
+  // degree labels
+  g.fillStyle = '#6f665a';
+  for (let d = 0; d <= 180; d += 30) for (const side of [1, -1]) {
+    if (side < 0 && (d === 0 || d === 180)) continue;
+    const a = d * Math.PI / 180; g.fillText(`${d}°`, cx + side * Math.sin(a) * (R + 40), cy - Math.cos(a) * (R + 40));
+  }
+  g.textAlign = 'left';
+  // chart frame
+  const ch = sv.ch;
+  if (ch) {
+    const X = d => ch.x0 + d / 180 * (ch.x1 - ch.x0), Y = m => ch.y1 - m / 30 * (ch.y1 - ch.y0);
+    g.strokeStyle = 'rgba(236,229,216,0.07)'; g.lineWidth = 1;
+    for (let d = 0; d <= 180; d += 30) { g.beginPath(); g.moveTo(X(d) + .5, ch.y0); g.lineTo(X(d) + .5, ch.y1); g.stroke(); }
+    for (let m = 0; m <= 30; m += 5) { g.beginPath(); g.moveTo(ch.x0, Y(m) + .5); g.lineTo(ch.x1, Y(m) + .5); g.stroke(); }
+    g.strokeStyle = 'rgba(236,229,216,0.35)';
+    g.beginPath(); g.moveTo(ch.x0 + .5, ch.y0); g.lineTo(ch.x0 + .5, ch.y1 + .5); g.lineTo(ch.x1, ch.y1 + .5); g.stroke();
+    g.fillStyle = '#6f665a'; g.font = '500 10px "IBM Plex Mono", monospace';
+    g.textAlign = 'center'; g.textBaseline = 'top';
+    for (let d = 0; d <= 180; d += 30) g.fillText(`${d}°`, X(d), ch.y1 + 6);
+    g.fillText('episantr uzaklığı', (ch.x0 + ch.x1) / 2, ch.y1 + 22);
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (let m = 0; m <= 30; m += 10) g.fillText(`${m} dk`, ch.x0 - 8, Y(m));
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#a89d8d'; g.font = '600 11px "IBM Plex Sans", sans-serif';
+    g.fillText('Varış süresi eğrisi', ch.x0, ch.y0 - 12);
+  }
+}
+function trailPass(list, color) {
+  const g = sv.trail.getContext('2d');
+  g.strokeStyle = color; g.beginPath();
+  for (const r of list) {
+    const to = r.idx;
+    if (to > r.drawn) {
+      for (const side of [1, -1]) {
+        let p = sxy(r.xs[r.drawn], r.ys[r.drawn], side); g.moveTo(p[0], p[1]);
+        for (let i = r.drawn + 1; i <= to; i++) { p = sxy(r.xs[i], r.ys[i], side); g.lineTo(p[0], p[1]); }
+      }
+      r.drawn = to;
+    }
+  }
+  g.stroke();
+}
+function drawTrails() {
+  const g = sv.trail.getContext('2d'); g.setTransform(sv.dpr, 0, 0, sv.dpr, 0, 0);
+  g.globalCompositeOperation = 'lighter'; g.lineWidth = 1;
+  if (sv.showP) trailPass(RAYS.P, 'rgba(255,180,90,0.11)');
+  if (sv.showS) trailPass(RAYS.S, 'rgba(130,165,255,0.12)');
+  g.globalCompositeOperation = 'source-over';
+}
+function rebuildTrails() {
+  const g = sv.trail.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, sv.trail.width, sv.trail.height);
+  for (const r of RAYS.P.concat(RAYS.S)) r.drawn = 0;
+  drawTrails();
+}
+function seisRestart() {
+  sv.T = 0; sv.hold = 0; sv.arrivals = [];
+  for (const r of RAYS.P.concat(RAYS.S)) { r.idx = 0; r.drawn = 0; r.arrived = false; }
+  for (const s of sv.stations) { s.fp = 0; s.fs = 0; }
+  const g = sv.trail.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, sv.trail.width, sv.trail.height);
+}
+function advanceRays() {
+  for (const r of RAYS.P.concat(RAYS.S)) {
+    while (r.idx < r.ts.length - 1 && r.ts[r.idx + 1] <= sv.T) r.idx++;
+    if (!r.arrived && sv.T >= r.tEnd) {
+      r.arrived = true;
+      sv.arrivals.push({ deg: r.deg, t: r.tEnd, S: r.S, cls: r.cls });
+      const st = sv.stations[Math.round(r.deg / 10)];
+      if (st && Math.abs(st.d - r.deg) < 3) { if (r.S) st.fs = 1; else st.fp = 1; }
+    }
+  }
+}
+function headOf(r) {
+  if (sv.T <= 0 || sv.T >= r.tEnd) return null;
+  const i = r.idx, t0 = r.ts[i], t1 = r.ts[i + 1]; const f = (sv.T - t0) / Math.max(t1 - t0, 1e-6);
+  return [lerp(r.xs[i], r.xs[i + 1], f), lerp(r.ys[i], r.ys[i + 1], f)];
+}
+function drawFronts(g, list, color) {
+  g.strokeStyle = color; g.lineWidth = 1.7; g.shadowColor = color; g.shadowBlur = 10;
+  for (const side of [1, -1]) {
+    g.beginPath(); let prev = null;
+    for (const r of list) {
+      const h = headOf(r); let p = null;
+      if (h) p = sxy(h[0], h[1], side);
+      if (p && prev && Math.hypot(p[0] - prev[0], p[1] - prev[1]) < 24) g.lineTo(p[0], p[1]);
+      else if (p) g.moveTo(p[0], p[1]);
+      prev = p;
+    }
+    g.stroke();
+  }
+  g.shadowBlur = 0;
+}
+function arcFade(t0) { return clamp((sv.T - t0) / 120, 0, 1); }
+function seisFrame(dt) {
+  if (!sv.laidOut) seisLayout();
+  if (sv.hold > 0) { sv.hold -= dt; if (sv.hold <= 0) seisRestart(); }
+  else { sv.T += dt * sv.speed; if (sv.T > MAXT + 90) sv.hold = 3.5; }
+  advanceRays(); drawTrails();
+  const g = sv.cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.drawImage(sv.base, 0, 0); g.drawImage(sv.trail, 0, 0);
+  g.setTransform(sv.dpr, 0, 0, sv.dpr, 0, 0);
+  const { cx, cy, R } = sv;
+  if (sv.showP) drawFronts(g, RAYS.P, '#ffd08a');
+  if (sv.showS) drawFronts(g, RAYS.S, '#a9c3ff');
+  // epicentre
+  const pulse = clamp(sv.T / 200, 0, 1);
+  if (pulse < 1) { g.strokeStyle = `rgba(255,107,36,${1 - pulse})`; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy - R, 4 + pulse * 40, 0, TAU); g.stroke(); }
+  g.fillStyle = '#ff6b24'; g.beginPath();
+  for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 3.2 : 8; g.lineTo(cx + Math.cos(a) * rr, cy - R + Math.sin(a) * rr); }
+  g.closePath(); g.fill();
+  // stations
+  for (const s of sv.stations) {
+    s.fp = Math.max(0, s.fp - dt * 0.7); s.fs = Math.max(0, s.fs - dt * 0.7);
+    for (const side of [1, -1]) {
+      if (s.d === 0 || (side < 0 && s.d === 180)) continue;
+      const a = s.d * Math.PI / 180, ux = side * Math.sin(a), uy = -Math.cos(a);
+      const px = cx + ux * (R + 3), py = cy + uy * (R + 3), qx = cx + ux * (R + 11), qy = cy + uy * (R + 11);
+      const tx = -uy * 4, ty = ux * 4;
+      const f = Math.max(s.fp, s.fs);
+      g.fillStyle = f > 0.02 ? (s.fp >= s.fs ? `rgba(255,197,107,${0.35 + 0.65 * f})` : `rgba(147,182,255,${0.35 + 0.65 * f})`) : '#4d463e';
+      g.beginPath(); g.moveTo(px, py); g.lineTo(qx + tx, qy + ty); g.lineTo(qx - tx, qy - ty); g.closePath(); g.fill();
+    }
+  }
+  // shadow zones
+  const aP = arcFade(SHADOW.tP), aS = arcFade(SHADOW.tS);
+  const rad = d => d * Math.PI / 180;
+  g.lineWidth = 3; g.lineCap = 'butt';
+  if (aP > 0 && sv.showP) {
+    g.strokeStyle = `rgba(255,197,107,${0.75 * aP})`; g.setLineDash([5, 4]);
+    g.beginPath(); g.arc(cx, cy, R + 17, rad(SHADOW.pStart - 90), rad(SHADOW.pEnd - 90)); g.stroke();
+    g.beginPath(); g.arc(cx, cy, R + 17, rad(270 - SHADOW.pEnd), rad(270 - SHADOW.pStart)); g.stroke();
+  }
+  if (aS > 0 && sv.showS) {
+    g.strokeStyle = `rgba(147,182,255,${0.75 * aS})`; g.setLineDash([2, 4]);
+    g.beginPath(); g.arc(cx, cy, R + 23, rad(SHADOW.sStart - 90), rad(90)); g.stroke();
+    g.beginPath(); g.arc(cx, cy, R + 23, rad(90), rad(270 - SHADOW.sStart)); g.stroke();
+  }
+  g.setLineDash([]);
+  g.font = '500 10.5px "IBM Plex Mono", monospace'; g.textBaseline = 'middle';
+  if (aP > 0 && sv.showP) {
+    const mA = rad((SHADOW.pStart + SHADOW.pEnd) / 2);
+    g.fillStyle = `rgba(255,197,107,${aP})`; g.textAlign = 'left';
+    g.fillText(`P gölgesi ${fmt(SHADOW.pStart)}°–${fmt(SHADOW.pEnd)}°`, cx + Math.sin(mA) * (R + 30), cy - Math.cos(mA) * (R + 30));
+  }
+  if (aS > 0 && sv.showS) {
+    const mA = rad((SHADOW.sStart + 150) / 2);
+    g.fillStyle = `rgba(147,182,255,${aS})`; g.textAlign = 'right';
+    g.fillText(`S gölgesi >${fmt(SHADOW.sStart)}°`, cx - Math.sin(mA) * (R + 32), cy - Math.cos(mA) * (R + 32));
+  }
+  g.textAlign = 'left';
+  // travel-time chart
+  const ch = sv.ch;
+  if (ch) {
+    const X = d => ch.x0 + d / 180 * (ch.x1 - ch.x0), Y = t => ch.y1 - (t / 60) / 30 * (ch.y1 - ch.y0);
+    if (aP > 0 && sv.showP) { g.fillStyle = `rgba(255,197,107,${0.08 * aP})`; g.fillRect(X(SHADOW.pStart), ch.y0, X(SHADOW.pEnd) - X(SHADOW.pStart), ch.y1 - ch.y0); }
+    for (const a of sv.arrivals) {
+      if ((a.S && !sv.showS) || (!a.S && !sv.showP) || a.t > 1800) continue;
+      g.fillStyle = a.S ? '#93b6ff' : (a.cls === 2 ? '#ffffff' : '#ffc56b');
+      g.beginPath(); g.arc(X(a.deg), Y(a.t), a.cls === 2 ? 2.4 : 1.9, 0, TAU); g.fill();
+    }
+    const tx = Math.min(sv.T, 1800);
+    g.strokeStyle = 'rgba(255,107,36,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(ch.x0, Y(tx) + .5); g.lineTo(ch.x1, Y(tx) + .5); g.stroke();
+  }
+  const m = Math.floor(sv.T / 60), s = Math.floor(sv.T % 60);
+  $('#clock').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/* =========================================================
+   Core render
+   ========================================================= */
+let frameAcc = 0, frameN = 0;
+function renderCore(dt, t) {
+  if (needResize) resizeCore();
+  if (!RM && t - state.lastInteract > 7 && !pointers.size) {
+    const target = Math.PI / 4 + 0.32 * Math.sin(t * 0.06);
+    cam.yaw += (target - cam.yaw) * Math.min(1, dt * 0.3);
+  }
+  updateCam();
+  if (glOK) {
+    gl.uniform2f(U.uRes, glc.width, glc.height);
+    gl.uniform1f(U.uTime, RM ? t * 0.3 : t);
+    gl.uniform1f(U.uTan, TANF);
+    gl.uniform1f(U.uProbe, 1 - state.depth / RE);
+    gl.uniform1f(U.uMode, state.mode);
+    gl.uniform1f(U.uHover, state.hoverR);
+    gl.uniform1f(U.uCore, 0.82 + 0.3 * dyn.strength);
+    gl.uniform3fv(U.uCP, cam.pos); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F);
+    gl.uniform3fv(U.uSun, SUN);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // adaptive resolution
+    frameAcc += dt; frameN++;
+    if (frameN >= 40) {
+      const avg = frameAcc / frameN; frameAcc = 0; frameN = 0;
+      if (avg > 0.034 && glScale > 0.5) { glScale = Math.max(0.5, glScale * 0.8); needResize = true; }
+      else if (avg < 0.018 && glScale < maxScale) { glScale = Math.min(maxScale, glScale * 1.1); needResize = true; }
+    }
+  }
+  drawOverlay(t);
+}
+
+/* =========================================================
+   Loop
+   ========================================================= */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; state.time += dt;
+  stepDyn(dt * dyn.speed);
+  if (state.tween) {
+    const tw = state.tween; tw.t += dt;
+    const f = clamp(tw.t / tw.dur, 0, 1);
+    setDepth(lerp(tw.from, tw.to, ease(f)));
+    if (f >= 1) { state.tween = null; updateDescendBtn(); }
+  }
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) toast.classList.remove('show'); }
+  if (state.view === 'core') renderCore(dt, state.time); else seisFrame(dt);
+  drawStripes(); drawSeries();
+  dynUiT -= dt; if (dynUiT <= 0) { updateDynUi(); dynUiT = 0.15; }
+  requestAnimationFrame(frame);
+}
+renderLegend();
+setDepth(2891);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawProfile(); sv.laidOut = false; });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

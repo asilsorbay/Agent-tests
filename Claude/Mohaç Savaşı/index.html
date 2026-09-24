@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mohaç 1526 · 3B Savaş Simülasyonu</title>
+<style>
+:root{
+  --gold:#d9b25f; --gold2:#f3d58a; --ink:#f4ead2; --dim:#c9b893;
+  --panel:rgba(24,16,9,.76); --line:rgba(217,178,95,.38);
+  --ott:#d13a2f; --hun:#4f86dc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#1a1410;color:var(--ink);
+  font-family:"Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;-webkit-user-select:none;user-select:none}
+#sky{position:fixed;inset:0;background:linear-gradient(#4f7fb6 0%,#8fb0cc 30%,#c9c7b4 52%,#d6ccb2 64%,#d6ccb2 100%)}
+#sun{position:fixed;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,250,228,1) 0,rgba(255,240,200,.95) 3.5%,rgba(255,220,150,.35) 12%,rgba(255,200,130,0) 50%)}
+canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+canvas#gl.drag{cursor:grabbing}
+.panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#title{position:fixed;top:14px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;
+  text-shadow:0 2px 12px rgba(0,0,0,.7),0 0 2px rgba(0,0,0,.9)}
+#title h1{font-size:25px;letter-spacing:.2em;text-transform:uppercase;font-weight:normal;color:var(--gold2)}
+#title .sub{font-size:13px;letter-spacing:.14em;color:var(--ink);opacity:.9;margin-top:2px}
+#title .orn{color:var(--gold);font-size:12px;letter-spacing:.8em;opacity:.8}
+#phase{top:16px;left:16px;width:300px;padding:14px 16px}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+#phase h2{font-size:20px;font-weight:normal;margin:4px 0 6px;color:var(--gold2)}
+#phase p{font-size:13.5px;line-height:1.45;color:var(--ink);opacity:.92}
+#forces{top:16px;right:16px;width:250px;padding:12px 14px}
+.side{margin-bottom:10px}
+.side .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px}
+.side .row span{font-variant-numeric:tabular-nums;font-size:13px;color:var(--dim)}
+.side small{font-size:11.5px;color:var(--dim);font-style:italic}
+.bar{height:7px;border-radius:4px;background:rgba(255,255,255,.1);margin:5px 0 3px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;border-radius:4px;transition:width .4s}
+.ott .bar i{background:linear-gradient(90deg,#8e1d16,var(--ott))} .ott b{color:#f08a7a}
+.hun .bar i{background:linear-gradient(90deg,#24508f,var(--hun))} .hun b{color:#9cc0f5}
+#forces .note{font-size:11px;color:var(--dim);border-top:1px solid var(--line);padding-top:7px;letter-spacing:.04em}
+#log{position:fixed;left:16px;top:230px;width:300px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--panel);border-left:3px solid var(--gold);padding:7px 10px;border-radius:4px;font-size:13px;line-height:1.35;
+  animation:tin .5s ease-out;transition:opacity 1s;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.toast.ott{border-left-color:var(--ott)} .toast.hun{border-left-color:var(--hun)} .toast.out{opacity:0}
+@keyframes tin{from{transform:translateX(-20px);opacity:0}to{transform:none;opacity:1}}
+#ctrl{bottom:16px;left:50%;transform:translateX(-50%);padding:10px 12px 10px;width:min(760px,calc(100% - 32px))}
+#timeline{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.12);margin:2px 2px 10px}
+#tlFill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+#tlMarks span{position:absolute;top:-3px;width:2px;height:12px;background:var(--line)}
+#tlMarks em{position:absolute;top:10px;transform:translateX(-50%);font-size:10px;font-style:normal;color:var(--dim);white-space:nowrap;letter-spacing:.05em}
+.btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+button{font:inherit;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:6px;
+  padding:5px 10px;font-size:13px;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{background:rgba(217,178,95,.16);border-color:var(--gold)}
+button.on{background:rgba(217,178,95,.28);border-color:var(--gold);color:#fff5d8}
+button:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+#bPlay{min-width:40px}
+.seg{display:flex}.seg button{border-radius:0;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+#mini{position:fixed;right:16px;bottom:16px;width:180px;height:180px;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);cursor:crosshair;background:#3b3a24}
+#help{position:fixed;left:16px;bottom:18px;font-size:11px;color:var(--ink);opacity:.75;max-width:230px;line-height:1.5;
+  text-shadow:0 1px 4px rgba(0,0,0,.9);pointer-events:none}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.lab{position:absolute;transform:translate(-50%,-100%);font-size:11px;white-space:nowrap;padding:2px 6px;border-radius:3px;
+  background:rgba(20,12,6,.62);border-bottom:2px solid var(--gold);color:var(--ink);letter-spacing:.03em}
+.lab.s0{border-bottom-color:var(--ott)} .lab.s1{border-bottom-color:var(--hun)}
+.lab i{font-style:normal;color:var(--dim);margin-left:4px;font-variant-numeric:tabular-nums}
+.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:radial-gradient(ellipse at center,rgba(15,9,4,.55),rgba(10,6,2,.85));transition:opacity .6s;z-index:10}
+.ov.hidden{opacity:0;pointer-events:none}
+.card{max-width:720px;width:100%;max-height:calc(100vh - 32px);overflow:auto;background:linear-gradient(#2a1d10,#1b130a);
+  border:1px solid var(--gold);border-radius:14px;padding:28px 32px;box-shadow:0 20px 70px rgba(0,0,0,.6),inset 0 0 0 5px rgba(217,178,95,.08)}
+.card .orn{text-align:center;color:var(--gold);letter-spacing:.9em;font-size:13px}
+.card h2{text-align:center;font-weight:normal;font-size:30px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);margin:6px 0 2px}
+.card .date{text-align:center;color:var(--dim);letter-spacing:.2em;font-size:13px;margin-bottom:18px}
+.card p{font-size:15px;line-height:1.6;margin-bottom:14px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:6px 0 16px}
+.cols div{border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:13.5px;line-height:1.55}
+.cols h3{font-weight:normal;font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.cols .o h3{color:#f08a7a}.cols .h h3{color:#9cc0f5}
+.card .fine{font-size:12px;color:var(--dim);text-align:center;margin-bottom:18px}
+.card .go{display:block;margin:0 auto;font-size:17px;letter-spacing:.14em;padding:10px 28px;text-transform:uppercase;
+  background:linear-gradient(#b8892e,#8a621c);border-color:var(--gold2);color:#fff8e4}
+.card .go:hover{background:linear-gradient(#cf9d3a,#9c7224)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 16px}
+.stats div{text-align:center;border:1px solid var(--line);border-radius:8px;padding:10px}
+.stats b{display:block;font-size:26px;font-weight:normal;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;color:var(--dim);letter-spacing:.06em}
+.row2{display:flex;gap:10px;justify-content:center}
+@media (max-width:900px){
+  #log{display:none} #help{display:none}
+  #phase{width:calc(100% - 32px);top:auto;bottom:128px;padding:10px 12px} #phase p{font-size:12.5px}
+  #forces{top:70px;width:190px;padding:8px 10px} .side small,#forces .note{display:none}
+  #mini{width:110px;height:110px;top:70px;left:16px;bottom:auto;right:auto}
+  #title h1{font-size:17px} #title .sub{font-size:11px}
+  #ctrl{padding:8px} .btns{gap:5px} button{padding:4px 7px;font-size:12px} #tlMarks em{display:none}
+  .cols{grid-template-columns:1fr} .card{padding:20px} .card h2{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div id="sky"></div><div id="sun"></div>
+<canvas id="gl"></canvas>
+<div id="labels"></div>
+
+<header id="title">
+  <div class="orn">✦ ✦ ✦</div>
+  <h1>Mohaç Meydan Muharebesi</h1>
+  <div class="sub">29 Ağustos 1526 · Tuna kıyısında Mohaç Ovası</div>
+</header>
+
+<section id="phase" class="panel">
+  <div class="kicker">Evre <span id="phN">1</span>/5 · <span id="clock">0 dk</span></div>
+  <h2 id="phT">Ordular Mevzide</h2>
+  <p id="phD"></p>
+</section>
+
+<section id="forces" class="panel">
+  <div class="side ott">
+    <div class="row"><b>Osmanlı Ordusu</b><span id="ottN">–</span></div>
+    <div class="bar"><i id="ottB"></i></div>
+    <small>Kanuni Sultan Süleyman</small>
+  </div>
+  <div class="side hun">
+    <div class="row"><b>Macar Krallığı</b><span id="hunN">–</span></div>
+    <div class="bar"><i id="hunB"></i></div>
+    <small>Kral II. Lajos · Tomori Pál</small>
+  </div>
+  <div class="note">1 figür ≈ 60 asker · sayılar temsilîdir</div>
+</section>
+
+<div id="log"></div>
+
+<footer id="ctrl" class="panel">
+  <div id="timeline"><div id="tlFill"></div><div id="tlMarks"></div></div>
+  <div class="btns">
+    <button id="bPlay" title="Oynat / Duraklat (Boşluk)">❚❚</button>
+    <div class="seg" id="speed">
+      <button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
+    </div>
+    <button id="bReset" title="Baştan başlat (R)">↺ Baştan</button>
+    <span class="sep"></span>
+    <div class="seg" id="camSeg">
+      <button data-c="cine" class="on" title="1">Sinematik</button><button data-c="free" title="2">Serbest</button><button data-c="top" title="3">Kuşbakışı</button><button data-c="ott" title="4">Osmanlı</button><button data-c="hun" title="5">Macar</button>
+    </div>
+    <button id="bLab" class="on" title="Birlik etiketleri (L)">⚑ Etiket</button>
+    <button id="bMus" class="on" title="Mehter müziği (M)">♪ Mehter</button>
+  </div>
+</footer>
+
+<canvas id="mini" width="360" height="360" title="Haritaya tıkla: kamerayı taşı"></canvas>
+<div id="help">Sürükle: döndür · Sağ tık / Shift + sürükle: kaydır · Tekerlek: yakınlaş · WASD / Q E · 1–5 kamera · Boşluk: duraklat · M: müzik</div>
+
+<div id="intro" class="ov">
+  <div class="card">
+    <div class="orn">✦ ✦ ✦</div>
+    <h2>Mohaç Meydan Muharebesi</h2>
+    <div class="date">29 AĞUSTOS 1526</div>
+    <p>Kanuni Sultan Süleyman komutasındaki Osmanlı ordusu, Kral II. Lajos'un Macar ordusuyla Tuna kıyısındaki Mohaç Ovası'nda karşılaştı. Macar ağır süvarisinin hücumu Osmanlı'nın zincirli top hattı ve Yeniçeri tüfekleri önünde dağıldı; kanatlardan gelen sipahiler çemberi kapattı. Savaş iki saatten kısa sürdü.</p>
+    <div class="cols">
+      <div class="o"><h3>Osmanlı</h3>Kanuni Sultan Süleyman<br>Rumeli Beylerbeyi Pargalı İbrahim Paşa<br>Anadolu Beylerbeyi Behram Paşa<br>Akıncı beyleri Bali ve Hüsrev Bey<br><i style="color:var(--dim)">Yeniçeriler, sipahiler, azaplar, akıncılar, zincirli toplar</i></div>
+      <div class="h"><h3>Macar Krallığı</h3>Kral II. Lajos<br>Başkomutan Tomori Pál<br>Szapolyai György<br><br><i style="color:var(--dim)">Zırhlı şövalyeler, paralı piyade, sahra topları, arabalı tabur</i></div>
+    </div>
+    <div class="fine">Temsilî simülasyondur: birlik sayıları ölçeklendirilmiş, savaş akışı sadeleştirilmiştir.</div>
+    <button class="go" id="bStart">Savaşı Başlat</button>
+  </div>
+</div>
+
+<div id="end" class="ov hidden">
+  <div class="card">
+    <div class="orn">✦ ✦ ✦</div>
+    <h2>Osmanlı Zaferi</h2>
+    <div class="date">MOHAÇ · 29 AĞUSTOS 1526</div>
+    <div class="stats">
+      <div><b id="eO" style="color:#f08a7a">–</b><span>Osmanlı kaybı (temsilî)</span></div>
+      <div><b id="eH" style="color:#9cc0f5">–</b><span>Macar kaybı (temsilî)</span></div>
+    </div>
+    <p>Tarihî kaynaklara göre Macar ordusu en az 14.000 kayıp verdi; Tomori Pál ve pek çok piskopos ile soylu savaş alanında öldü. Kral II. Lajos kaçarken Csele deresinde boğuldu. Osmanlı ordusu Eylül'de Budin'e girdi; Macaristan'ın bölünme süreci başladı.</p>
+    <div class="row2"><button class="go" id="bAgain">Tekrar İzle</button><button id="bFree">Alanı Gez</button></div>
+  </div>
+</div>
+
+<div id="err" class="ov hidden"><div class="card"><h2>WebGL2 gerekli</h2><p style="text-align:center">Bu simülasyon WebGL2 destekleyen güncel bir tarayıcı gerektirir.</p></div></div>
+<script>
+'use strict';
+/* =========================================================================
+   MOHAÇ 1526 — kütüphanesiz WebGL2 savaş simülasyonu
+   ========================================================================= */
+const TAU = Math.PI * 2;
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const angLerp = (a, b, t) => { const d = ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI; return a + d * t; };
+const $ = id => document.getElementById(id);
+
+/* ---------- gürültü ---------- */
+function hash(x, z) { const h = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return h - Math.floor(h); }
+function vnoise(x, z) {
+  const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+  return lerp(lerp(hash(xi, zi), hash(xi + 1, zi), u), lerp(hash(xi, zi + 1), hash(xi + 1, zi + 1), u), v);
+}
+function fbm(x, z) { let s = 0, a = .5, f = 1; for (let i = 0; i < 4; i++) { s += a * vnoise(x * f, z * f); f *= 2.03; a *= .5; } return s; }
+
+/* ---------- arazi: güneyde Osmanlı sırtları, doğuda Tuna, kuzeydoğuda Csele deresi ---------- */
+const HALF = 240, WATER = -1.0, GN = 128, GS = HALF * 2 / GN;
+const riverX = z => 178 + Math.sin(z * .012) * 14 + Math.sin(z * .031) * 5;
+const roadX = z => -8 + Math.sin(z * .013) * 18;
+const CREEK = [[25, -240], [52, -205], [80, -182], [108, -166], [132, -150], [152, -132], [170, -118], [192, -110]];
+function segD(px, pz, ax, az, bx, bz) {
+  const vx = bx - ax, vz = bz - az, wx = px - ax, wz = pz - az;
+  const t = clamp((wx * vx + wz * vz) / (vx * vx + vz * vz), 0, 1);
+  const dx = wx - vx * t, dz = wz - vz * t; return Math.sqrt(dx * dx + dz * dz);
+}
+function creekDist(x, z) {
+  if (x < -30 || z > -60) return 999;
+  let d = 1e9; for (let i = 0; i < CREEK.length - 1; i++) d = Math.min(d, segD(x, z, ...CREEK[i], ...CREEK[i + 1]));
+  return d;
+}
+function marshAmt(x, z) {
+  let m = smooth(42, 8, creekDist(x, z));
+  if (z < 0) m = Math.max(m, smooth(75, 25, riverX(z) - x) * smooth(0, -70, z));
+  return clamp(m * (.55 + .6 * fbm(x * .05 + 4, z * .05)), 0, 1);
+}
+function height(x, z) {
+  let h = (fbm(x * .011 + 3.1, z * .011 + 7.7) - .5) * 5;
+  h += smooth(35, 165, z) * 10 * (.7 + .6 * fbm(x * .008 + 1, z * .01 + 2));
+  const e = Math.max(Math.abs(x), Math.abs(z)) / HALF;
+  h += smooth(.74, 1.0, e) * 32 * (.35 + fbm(x * .018 + 9, z * .018));
+  const dr = Math.abs(x - riverX(z));
+  h = lerp(h, Math.min(h, .4), smooth(70, 22, dr));
+  h = lerp(h, -3.2, smooth(16, 7, dr));
+  h = lerp(h, -2.4, smooth(6, 2, creekDist(x, z)));
+  const m = marshAmt(x, z);
+  h = lerp(h, Math.min(h, -.35) + (fbm(x * .09, z * .09) - .5) * 1.8, m * .85);
+  return h;
+}
+const HG = new Float32Array((GN + 1) * (GN + 1));
+for (let j = 0; j <= GN; j++) for (let i = 0; i <= GN; i++) HG[j * (GN + 1) + i] = height(-HALF + i * GS, -HALF + j * GS);
+function hAt(x, z) { // hızlı çift doğrusal örnekleme
+  const fx = clamp((x + HALF) / GS, 0, GN - .001), fz = clamp((z + HALF) / GS, 0, GN - .001);
+  const i = fx | 0, j = fz | 0, u = fx - i, v = fz - j, W = GN + 1;
+  return lerp(lerp(HG[j * W + i], HG[j * W + i + 1], u), lerp(HG[(j + 1) * W + i], HG[(j + 1) * W + i + 1], u), v);
+}
+function groundCol(x, z, h, slope) {
+  const n = fbm(x * .06, z * .06), n2 = fbm(x * .25 + 5, z * .25);
+  let r = .45 + .1 * n, g = .5 + .09 * n, b = .24 + .04 * n;          // ağustos otu
+  if (z < 25 && z > -215 && Math.abs(x) < 150) {                        // ekin tarlaları
+    const hv = hash(Math.floor((x + 7) / 38), Math.floor((z + 3) / 26));
+    if (hv > .64) { const st = .5 + .5 * Math.sin((hv > .82 ? x : z) * 1.5); r = .74 + .05 * st; g = .63 + .05 * st; b = .34; }
+    else if (hv < .12) { r = .47; g = .4; b = .27; }
+  }
+  const hill = smooth(9, 22, h); r = lerp(r, .31, hill * .6); g = lerp(g, .42, hill * .5); b = lerp(b, .2, hill * .5);
+  const m = marshAmt(x, z); r = lerp(r, .29, m); g = lerp(g, .35, m); b = lerp(b, .19, m);
+  const sb = smooth(25, 14, Math.abs(x - riverX(z))); r = lerp(r, .66, sb); g = lerp(g, .6, sb); b = lerp(b, .45, sb);
+  if (h < WATER + .3) { r = .36; g = .34; b = .25; }
+  const rd = smooth(4, 1.5, Math.abs(x - roadX(z))) * smooth(-200, -150, z); r = lerp(r, .6, rd * .8); g = lerp(g, .52, rd * .8); b = lerp(b, .38, rd * .8);
+  r = lerp(r, .5, slope); g = lerp(g, .46, slope); b = lerp(b, .38, slope);
+  const k = .9 + .18 * n2; return [r * k, g * k, b * k];
+}
+
+/* ---------- WebGL2 ---------- */
+const cv = $('gl');
+const gl = cv.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: true });
+if (!gl) { $('err').classList.remove('hidden'); $('intro').classList.add('hidden'); throw new Error('WebGL2 yok'); }
+
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s;
+}
+function program(vs, fs, names) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vs)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = { p }; for (const n of names) u[n] = gl.getUniformLocation(p, n); return u;
+}
+
+/* etiketler (aCol.w): 0 sabit, 1 renklendirilmiş, 2/7 bacak salınımı, 3 bayrak, 4 renkli bayrak, 5 silah, 6 su */
+const MESH_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor; layout(location=2) in vec4 aCol;
+layout(location=3) in vec4 iA; layout(location=4) in vec4 iB; layout(location=5) in vec4 iC;
+uniform mat4 uVP; uniform float uTime, uHip; uniform vec2 uPiv;
+out vec3 vCol; out vec3 vNor; out vec3 vW; flat out int vTag;
+vec3 rX(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(p.x,p.y*c-p.z*s,p.y*s+p.z*c);}
+vec3 rZ(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(p.x*c-p.y*s,p.x*s+p.y*c,p.z);}
+vec3 rY(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(p.x*c+p.z*s,p.y,-p.x*s+p.z*c);}
+void main(){
+  int tag=int(aCol.w+.5); vec3 p=aPos, n=aNor, col=aCol.rgb;
+  if(tag==1||tag==4) col*=iB.rgb;
+  if(tag==2||tag==7){ float a=sin(iB.w+(tag==7?3.1416:0.))*iC.z*.55; p.z+=(uHip-p.y)*a; }
+  if(tag==5){ vec3 pv=vec3(0.,uPiv.x,uPiv.y); float a=-iC.w*1.1; p=rX(p-pv,a)+pv; n=rX(n,a); }
+  if(tag==3||tag==4){ float w=max(p.x,0.); p.z+=sin(uTime*5.+p.x*2.3+iB.w)*.22*w; p.y-=w*w*.02; }
+  if(iC.y!=0.){ float a=iC.y*1.45; p=rZ(p,a); n=rZ(n,a); p.y-=abs(iC.y)*.15; }
+  p*=iC.x; p=rY(p,iA.w); n=rY(n,iA.w);
+  vec3 w=p+iA.xyz; vW=w; vNor=n; vCol=col; vTag=tag;
+  gl_Position=uVP*vec4(w,1.);
+}`;
+const MESH_FS = `#version 300 es
+precision highp float;
+in vec3 vCol; in vec3 vNor; in vec3 vW; flat in int vTag;
+uniform vec3 uCam, uSun, uFog; uniform float uFogD, uTime;
+out vec4 o;
+void main(){
+  vec3 n=normalize(vNor), V=normalize(uCam-vW);
+  if(vTag==6){ float r1=sin(vW.x*.55+uTime*1.2)*sin(vW.z*.8-uTime*.9), r2=sin(vW.x*1.7-uTime*1.6+vW.z*.6);
+    n=normalize(vec3(r1*.09,1.,r2*.09)); }
+  if(dot(n,V)<0.) n=-n;
+  float dif=max(dot(n,uSun),0.), hemi=.5+.5*n.y;
+  vec3 amb=mix(vec3(.30,.27,.23),vec3(.56,.61,.70),hemi);
+  vec3 c=vCol*(amb*.78+vec3(1.,.92,.78)*dif*.88);
+  if(vTag==6){ vec3 H=normalize(uSun+V); float sp=pow(max(dot(n,H),0.),90.);
+    float fr=pow(1.-max(V.y,0.),4.); c=mix(vCol*(amb*.9+dif*.25),uFog*.95,fr*.7)+vec3(1.,.93,.75)*sp*.9; }
+  float d=length(uCam-vW), f=1.-exp(-pow(d/uFogD,1.7));
+  c=mix(c,uFog,clamp(f,0.,1.));
+  o=vec4(c,1.);
+}`;
+const PART_VS = `#version 300 es
+layout(location=0) in vec3 aP; layout(location=1) in vec4 aC; layout(location=2) in float aS;
+uniform mat4 uVP; uniform float uFocal; out vec4 vC;
+void main(){ gl_Position=uVP*vec4(aP,1.); gl_PointSize=clamp(aS*uFocal/gl_Position.w,1.,256.); vC=aC; }`;
+const PART_FS = `#version 300 es
+precision mediump float; in vec4 vC; out vec4 o;
+void main(){ vec2 q=gl_PointCoord*2.-1.; float r=dot(q,q); if(r>1.) discard; o=vec4(vC.rgb,vC.a*(1.-r)*(1.-r*.5)); }`;
+
+const MP = program(MESH_VS, MESH_FS, ['uVP', 'uTime', 'uHip', 'uPiv', 'uCam', 'uSun', 'uFog', 'uFogD']);
+const PP = program(PART_VS, PART_FS, ['uVP', 'uFocal']);
+
+/* ---------- mesh oluşturucu ---------- */
+class MB {
+  constructor() { this.a = []; }
+  v(p, n, c, t) { this.a.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2], t); }
+  q(p0, p1, p2, p3, n, c, t) {
+    if (!n) { const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], wx = p2[0] - p0[0], wy = p2[1] - p0[1], wz = p2[2] - p0[2];
+      n = [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx]; const l = Math.hypot(...n) || 1; n = n.map(k => k / l); }
+    this.v(p0, n, c, t); this.v(p1, n, c, t); this.v(p2, n, c, t); this.v(p0, n, c, t); this.v(p2, n, c, t); this.v(p3, n, c, t);
+  }
+  tri(p0, p1, p2, c, t) {
+    const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], wx = p2[0] - p0[0], wy = p2[1] - p0[1], wz = p2[2] - p0[2];
+    let n = [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx]; const l = Math.hypot(...n) || 1; n = n.map(k => k / l);
+    this.v(p0, n, c, t); this.v(p1, n, c, t); this.v(p2, n, c, t);
+  }
+  box(x, y, z, w, h, d, c, t = 0) {
+    const a = x - w / 2, b = x + w / 2, e = y - h / 2, f = y + h / 2, g = z - d / 2, k = z + d / 2;
+    this.q([a, e, k], [b, e, k], [b, f, k], [a, f, k], [0, 0, 1], c, t);
+    this.q([b, e, g], [a, e, g], [a, f, g], [b, f, g], [0, 0, -1], c, t);
+    this.q([b, e, k], [b, e, g], [b, f, g], [b, f, k], [1, 0, 0], c, t);
+    this.q([a, e, g], [a, e, k], [a, f, k], [a, f, g], [-1, 0, 0], c, t);
+    this.q([a, f, k], [b, f, k], [b, f, g], [a, f, g], [0, 1, 0], c, t);
+    this.q([a, e, g], [b, e, g], [b, e, k], [a, e, k], [0, -1, 0], c, t);
+  }
+  cyl(ax, x, y, z, r0, r1, len, n, c, t = 0, caps = true) {
+    const P = (u, v, s) => ax === 'y' ? [x + u, y + s, z + v] : ax === 'x' ? [x + s, y + u, z + v] : [x + u, y + v, z + s];
+    const N = (u, v) => ax === 'y' ? [u, 0, v] : ax === 'x' ? [0, u, v] : [u, v, 0];
+    const h = len / 2;
+    for (let i = 0; i < n; i++) {
+      const a0 = i / n * TAU, a1 = (i + 1) / n * TAU, am = (a0 + a1) / 2;
+      const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+      this.q(P(c0 * r0, s0 * r0, -h), P(c1 * r0, s1 * r0, -h), P(c1 * r1, s1 * r1, h), P(c0 * r1, s0 * r1, h), N(Math.cos(am), Math.sin(am)), c, t);
+      if (caps && r0 > 0) this.tri(P(0, 0, -h), P(c0 * r0, s0 * r0, -h), P(c1 * r0, s1 * r0, -h), c, t);
+      if (caps && r1 > 0) this.tri(P(0, 0, h), P(c1 * r1, s1 * r1, h), P(c0 * r1, s0 * r1, h), c, t);
+    }
+  }
+}
+
+/* instanced mesh: örnek başına 12 float -> [x y z yön][r g b faz][ölçek düşüş salınım kol] */
+function makeMesh(mb, cap) {
+  const m = { count: mb.a.length / 10, cap, data: new Float32Array(cap * 12), n: 0 };
+  m.vao = gl.createVertexArray(); gl.bindVertexArray(m.vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mb.a), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 40, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 40, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 40, 24);
+  m.ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, m.ib); gl.bufferData(gl.ARRAY_BUFFER, m.data.byteLength, gl.DYNAMIC_DRAW);
+  for (let i = 0; i < 3; i++) { gl.enableVertexAttribArray(3 + i); gl.vertexAttribPointer(3 + i, 4, gl.FLOAT, false, 48, i * 16); gl.vertexAttribDivisor(3 + i, 1); }
+  gl.bindVertexArray(null); return m;
+}
+function inst(m, x, y, z, h, r, g, b, ph, sc, fall, amp, arm) {
+  if (m.n >= m.cap) return; const d = m.data, o = m.n++ * 12;
+  d[o] = x; d[o + 1] = y; d[o + 2] = z; d[o + 3] = h; d[o + 4] = r; d[o + 5] = g; d[o + 6] = b; d[o + 7] = ph;
+  d[o + 8] = sc; d[o + 9] = fall; d[o + 10] = amp; d[o + 11] = arm;
+}
+function drawMesh(m, hip = 0, py = 0, pz = 0) {
+  if (!m.n) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.ib); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.data, 0, m.n * 12);
+  gl.uniform1f(MP.uHip, hip); gl.uniform2f(MP.uPiv, py, pz);
+  gl.bindVertexArray(m.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, m.count, m.n); m.n = 0;
+}
+
+/* ---------- modeller ---------- */
+const C = { skin: [.86, .66, .5], wood: [.4, .27, .15], dwood: [.25, .17, .1], iron: [.25, .25, .27], steel: [.68, .7, .75],
+  gold: [.9, .72, .3], white: [.95, .93, .86], pants: [.3, .23, .17], bronze: [.75, .56, .26], hair: [.12, .09, .07] };
+
+function human(o) {
+  const m = new MB(), pants = o.pants || C.pants;
+  m.box(-.12, .42, 0, .15, .84, .17, pants, 2); m.box(.12, .42, 0, .15, .84, .17, pants, 7);
+  m.box(0, .98, 0, .52, .42, .34, [.82, .82, .82], 1);
+  m.box(0, 1.34, 0, .48, .5, .3, [1, 1, 1], 1);
+  if (o.armor) m.box(0, 1.36, .03, .5, .44, .3, C.steel);
+  m.box(0, 1.12, 0, .54, .07, .36, o.armor ? C.iron : C.gold);
+  m.box(-.31, 1.32, .06, .12, .48, .14, [.9, .9, .9], 1); m.box(.31, 1.32, .06, .12, .48, .14, [.9, .9, .9], 1);
+  m.box(0, 1.73, 0, .23, .25, .23, C.skin);
+  if (o.hat === 'bork') { m.box(0, 2.02, -.02, .27, .38, .27, C.white); m.box(0, 1.8, -.2, .2, .52, .06, C.white); m.box(0, 1.92, .14, .07, .14, .04, C.gold); }
+  if (o.hat === 'cap') { m.box(0, 1.92, 0, .27, .16, .27, [.72, .16, .1]); m.box(0, 1.87, 0, .31, .07, .31, C.white); }
+  if (o.hat === 'helm') { m.box(0, 1.91, 0, .29, .14, .29, C.steel); m.box(0, 1.85, 0, .44, .03, .44, C.steel); m.box(0, 1.99, 0, .04, .09, .27, C.steel); }
+  if (o.wpn === 'musket') { m.box(.24, 1.36, .45, .06, .07, 1.5, C.wood, 5); m.box(.24, 1.38, 1.18, .04, .04, .32, C.iron, 5); }
+  if (o.wpn === 'bow') { m.box(.36, 1.36, .22, .04, 1.15, .05, C.dwood, 5); m.box(.36, 1.36, .16, .01, 1.1, .01, C.white, 5); }
+  if (o.wpn === 'pike') { m.box(.3, 1.55, .9, .05, .05, 4.2, C.wood, 5); m.box(.3, 1.55, 3.05, .07, .07, .32, C.steel, 5); }
+  return m;
+}
+function rider(o) {
+  const m = new MB(), hc = o.knight ? [.33, .27, .23] : [.46, .29, .17], hd = hc.map(k => k * .7);
+  m.box(0, 1.35, 0, .56, .62, 1.65, hc); m.box(0, 1.8, .82, .3, .75, .38, hc); m.box(0, 2.12, 1.12, .26, .28, .6, hc);
+  m.box(0, 2.04, .7, .06, .62, .3, C.hair); m.box(0, 1.25, -.9, .1, .62, .12, C.hair);
+  m.box(-.18, .55, .62, .14, 1.1, .15, hd, 2); m.box(.18, .55, .62, .14, 1.1, .15, hd, 7);
+  m.box(-.18, .55, -.62, .14, 1.1, .15, hd, 7); m.box(.18, .55, -.62, .14, 1.1, .15, hd, 2);
+  if (o.knight) { m.box(0, 1.22, 0, .66, .6, 1.76, [1, 1, 1], 1); m.box(0, 2.15, 1.2, .28, .24, .5, C.steel); }
+  else m.box(0, 1.69, -.05, .62, .1, .8, [.9, .9, .9], 1);
+  m.box(-.3, 1.58, .1, .13, .55, .16, C.pants); m.box(.3, 1.58, .1, .13, .55, .16, C.pants);
+  if (o.knight) { m.box(0, 2.18, 0, .46, .6, .3, C.steel); m.box(0, 1.98, 0, .5, .3, .33, [1, 1, 1], 1); }
+  else m.box(0, 2.15, 0, .46, .62, .3, [1, 1, 1], 1);
+  const arm = o.knight ? C.steel : [.9, .9, .9], at = o.knight ? 0 : 1;
+  m.box(-.3, 2.15, .05, .12, .5, .14, arm, at); m.box(.3, 2.15, .05, .12, .5, .14, arm, at);
+  m.box(0, 2.62, 0, .22, .24, .22, C.skin);
+  if (o.knight) { m.box(0, 2.68, 0, .28, .36, .28, C.steel); m.box(0, 2.95, -.05, .06, .22, .3, [1, 1, 1], 1); }
+  else { m.box(0, 2.78, 0, .32, .14, .32, C.white); m.cyl('y', 0, 2.97, 0, .13, 0, .26, 6, C.steel); }
+  const L = o.knight ? 4.2 : 3.4;
+  m.box(.34, 2.25, .9, .06, .06, L, C.wood, 5); m.box(.34, 2.25, .9 + L / 2, .08, .08, .3, C.steel, 5);
+  if (!o.knight) m.box(.34, 2.42, .9 + L / 2 - .4, .02, .2, .38, [.8, .12, .1], 5);
+  return m;
+}
+function cannonMesh() {
+  const m = new MB();
+  m.box(0, .55, -.3, .55, .3, 1.8, C.wood); m.box(0, .3, -1.45, .3, .2, 1.0, C.wood); m.box(0, .5, 0, 1.0, .12, .12, C.iron);
+  m.cyl('x', -.46, .5, 0, .5, .5, .12, 10, C.dwood); m.cyl('x', .46, .5, 0, .5, .5, .12, 10, C.dwood);
+  m.cyl('z', 0, .86, .35, .21, .15, 2.1, 10, C.bronze, 5); m.cyl('z', 0, .86, 1.38, .19, .19, .12, 10, C.bronze, 5);
+  m.cyl('z', 0, .86, -.75, .12, .08, .2, 8, C.bronze, 5);
+  return m;
+}
+function flagMesh(striped, big) {
+  const m = new MB(), s = big ? 1.3 : 1;
+  m.cyl('y', 0, 2.8 * s, 0, .05, .05, 5.6 * s, 6, C.wood); m.cyl('y', 0, 5.72 * s, 0, .09, .0, .3, 6, C.gold);
+  const sx = 8, sy = striped ? 8 : 1, x0 = .06, x1 = 2.5 * s, y0 = 4.0 * s, y1 = 5.4 * s;
+  for (let i = 0; i < sx; i++) for (let j = 0; j < sy; j++) {
+    const a = lerp(x0, x1, i / sx), b = lerp(x0, x1, (i + 1) / sx), e = lerp(y0, y1, j / sy), f = lerp(y0, y1, (j + 1) / sy);
+    const col = striped ? (j % 2 ? [.95, .92, .86] : [.72, .1, .12]) : [1, 1, 1];
+    m.q([a, e, 0], [b, e, 0], [b, f, 0], [a, f, 0], [0, 0, 1], col, striped ? 3 : 4);
+  }
+  return m;
+}
+function tugMesh() {
+  const m = new MB();
+  m.cyl('y', 0, 2.8, 0, .06, .06, 5.6, 6, C.wood); m.cyl('y', 0, 5.75, 0, .16, .16, .3, 8, C.gold);
+  m.cyl('y', 0, 5.0, 0, .3, .1, 1.1, 8, C.hair); m.cyl('y', 0, 6.05, 0, .07, 0, .35, 6, C.gold);
+  return m;
+}
+function tentMesh() {
+  const m = new MB();
+  m.cyl('y', 0, 1.0, 0, 3, 3, 2, 12, [1, 1, 1], 1, false);
+  m.cyl('y', 0, 2.9, 0, 3.25, .05, 1.8, 12, [.92, .92, .92], 1, false);
+  m.cyl('y', 0, 4.0, 0, .12, .12, .5, 6, C.gold);
+  m.box(0, .9, 3.0, 1.0, 1.8, .06, [.25, .18, .12]);
+  return m;
+}
+function wagonMesh() {
+  const m = new MB();
+  m.box(0, .95, 0, 1.3, .5, 2.8, C.wood); m.box(0, 1.55, 0, 1.25, .72, 2.3, [.84, .8, .68]);
+  for (const sx of [-.72, .72]) for (const sz of [-.9, .9]) m.cyl('x', sx, .5, sz, .48, .48, .1, 8, C.dwood);
+  m.box(0, .7, 2.0, .1, .1, 1.6, C.wood);
+  return m;
+}
+function treeMesh() {
+  const m = new MB();
+  m.cyl('y', 0, 1.3, 0, .2, .13, 2.6, 5, [.34, .25, .16]);
+  m.cyl('y', 0, 3.4, 0, .3, 1.8, 1.8, 7, [.32, .44, .21], 1); m.cyl('y', 0, 5.0, 0, 1.8, .25, 1.6, 7, [.35, .47, .23], 1);
+  return m;
+}
+function terrainMesh() {
+  const m = new MB(), W = GN + 1, V = [];
+  for (let j = 0; j <= GN; j++) for (let i = 0; i <= GN; i++) {
+    const x = -HALF + i * GS, z = -HALF + j * GS, h = HG[j * W + i];
+    const hl = HG[j * W + Math.max(i - 1, 0)], hr = HG[j * W + Math.min(i + 1, GN)], hd = HG[Math.max(j - 1, 0) * W + i], hu = HG[Math.min(j + 1, GN) * W + i];
+    const nx = hl - hr, nz = hd - hu, ny = 2 * GS, l = Math.hypot(nx, ny, nz), n = [nx / l, ny / l, nz / l];
+    V.push({ p: [x, h, z], n, c: groundCol(x, z, h, smooth(.86, .6, n[1])) });
+  }
+  for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) {
+    const a = V[j * W + i], b = V[j * W + i + 1], c = V[(j + 1) * W + i + 1], d = V[(j + 1) * W + i];
+    for (const q of [a, b, c, a, c, d]) m.v(q.p, q.n, q.c, 0);
+  }
+  const F = 1400, oy = .5;  // ufka uzanan dış zemin
+  const oc = [.42, .47, .3], up = [0, 1, 0], H2 = HALF - 1;
+  m.q([-F, oy, -F], [F, oy, -F], [F, oy, -H2], [-F, oy, -H2], up, oc, 0);
+  m.q([-F, oy, H2], [F, oy, H2], [F, oy, F], [-F, oy, F], up, oc, 0);
+  m.q([-F, oy, -H2], [-H2, oy, -H2], [-H2, oy, H2], [-F, oy, H2], up, oc, 0);
+  m.q([H2, oy, -H2], [F, oy, -H2], [F, oy, H2], [H2, oy, H2], up, oc, 0);
+  m.q([-HALF, WATER, -HALF], [HALF, WATER, -HALF], [HALF, WATER, HALF], [-HALF, WATER, HALF], [0, 1, 0], [.2, .33, .4], 6);
+  return m;
+}
+
+const M = {
+  terrain: makeMesh(terrainMesh(), 1),
+  jan: makeMesh(human({ hat: 'bork', wpn: 'musket' }), 400),
+  azap: makeMesh(human({ hat: 'cap', wpn: 'bow' }), 500),
+  pike: makeMesh(human({ hat: 'helm', wpn: 'pike', armor: true }), 500),
+  sip: makeMesh(rider({ knight: false }), 700),
+  kn: makeMesh(rider({ knight: true }), 400),
+  cannon: makeMesh(cannonMesh(), 40),
+  flagO: makeMesh(flagMesh(false), 40), flagH: makeMesh(flagMesh(true), 30), flagHB: makeMesh(flagMesh(true, true), 4),
+  tug: makeMesh(tugMesh(), 10), tent: makeMesh(tentMesh(), 60), wagon: makeMesh(wagonMesh(), 60), tree: makeMesh(treeMesh(), 600),
+};
+let chainMesh = null; // top hattı kurulunca oluşturulur
+
+/* ---------- parçacık GL ---------- */
+const MAXP = 5000;
+const PBUF = new Float32Array(MAXP * 8);
+const pVao = gl.createVertexArray(); gl.bindVertexArray(pVao);
+const pVbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, pVbo); gl.bufferData(gl.ARRAY_BUFFER, PBUF.byteLength, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 32, 0);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 32, 12);
+gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 32, 28);
+gl.bindVertexArray(null);
+
+/* =========================================================================
+   DÜNYA ve SİMÜLASYON
+   ========================================================================= */
+const G = 9.8, WIND = [.9, 0, .35];
+const TYPES = {
+  azap:  { side: 0, mesh: 'azap', cav: 0, hp: 3.2, spd: 3.4, atk: .8,  reach: 1.9, cdm: 1.1, range: 34, reload: [2.4, 3.6], shot: 'arrow',  tint: [.74, .4, .2],   gap: 2.5 },
+  jan:   { side: 0, mesh: 'jan',  cav: 0, hp: 3.4, spd: 3.2, atk: 1.2, reach: 1.9, cdm: 1.0, range: 48, reload: [4.5, 6.5], shot: 'musket', acc: .11, tint: [.7, .12, .12], gap: 2.5 },
+  sip:   { side: 0, mesh: 'sip',  cav: 1, hp: 4.4, spd: 9,   atk: 1.4, reach: 2.7, cdm: 1.0, range: 26, reload: [3, 4.5],   shot: 'arrow',  tint: [.56, .16, .12], gap: 3.6 },
+  anad:  { side: 0, mesh: 'sip',  cav: 1, hp: 4.4, spd: 9,   atk: 1.4, reach: 2.7, cdm: 1.0, range: 26, reload: [3, 4.5],   shot: 'arrow',  tint: [.2, .45, .24],  gap: 3.6 },
+  kapi:  { side: 0, mesh: 'sip',  cav: 1, hp: 5.5, spd: 9.5, atk: 1.8, reach: 2.7, cdm: 1.0, range: 0,  tint: [.88, .64, .2],  gap: 3.6 },
+  akn:   { side: 0, mesh: 'sip',  cav: 1, hp: 3.2, spd: 10.5, atk: 1.1, reach: 2.7, cdm: 1.0, range: 28, reload: [2.8, 4], shot: 'arrow',  tint: [.52, .45, .32], gap: 3.6 },
+  kn:    { side: 1, mesh: 'kn',   cav: 1, hp: 7.5, spd: 8.4, atk: 1.8, reach: 2.9, cdm: 1.2, range: 0, tint: [.26, .43, .82], gap: 3.8 },
+  guard: { side: 1, mesh: 'kn',   cav: 1, hp: 8.5, spd: 8.4, atk: 2.0, reach: 2.9, cdm: 1.2, range: 0, tint: [.15, .2, .55],  gap: 3.8 },
+  pike:  { side: 1, mesh: 'pike', cav: 0, hp: 3.6, spd: 3.0, atk: 1.0, reach: 2.8, cdm: 1.1, range: 0, tint: [.42, .56, .86], gap: 2.6 },
+  merc:  { side: 1, mesh: 'pike', cav: 0, hp: 3.6, spd: 3.0, atk: 1.05, reach: 2.8, cdm: 1.1, range: 0, tint: [.78, .76, .8],  gap: 2.6 },
+};
+const CHAIN = { z: 72, x: 58 };               // zincirli top hattı
+const KING_GOAL = { x: 133, z: -151 };         // Csele deresi
+let S = null;
+
+/* ---------- dekor (bir kez) ---------- */
+const TREES = [], TENTS = [], WAGONS = [];
+(function scenery() {
+  for (let i = 0; i < 4000 && TREES.length < 380; i++) {
+    const x = rand(-HALF + 4, HALF - 4), z = rand(-HALF + 4, HALF - 4), h = hAt(x, z);
+    if (h < WATER + .4) continue;
+    const dr = Math.abs(x - riverX(z)), cd = creekDist(x, z), e = Math.max(Math.abs(x), Math.abs(z)) / HALF;
+    const battle = Math.abs(x) < 150 && z > -150 && z < 130;
+    let p = 0;
+    if (dr > 15 && dr < 55) p = .75;
+    if (cd > 5 && cd < 22) p = .8;
+    if (e > .8) p = Math.max(p, .35);
+    if (!battle && hash(Math.floor(x / 30), Math.floor(z / 30)) > .72) p = Math.max(p, .5);
+    if (battle && dr > 55 && cd > 22) p = 0;
+    if (Math.random() > p) continue;
+    const poplar = dr < 55 && Math.random() < .5;
+    TREES.push({ x, y: h - .1, z, h: rand(0, TAU), s: poplar ? rand(1.1, 1.5) : rand(.8, 1.2), t: [rand(.85, 1.1), rand(.85, 1.1), rand(.8, 1)] });
+  }
+  for (let i = 0; i < 26; i++) { // Osmanlı ordugâhı
+    const x = rand(-75, 75), z = rand(158, 210);
+    if (Math.abs(x) < 16 && z < 175) continue;
+    const red = Math.random() < .3;
+    TENTS.push({ x, y: hAt(x, z), z, s: rand(.9, 1.2), t: red ? [.75, .2, .15] : [.95, .92, .82] });
+  }
+  TENTS.push({ x: 0, y: hAt(0, 146), z: 146, s: 2.3, t: [.78, .14, .12] }); // otağ-ı hümayun
+  for (let i = 0; i < 30; i++) { // Macar arabalı taburu (Wagenburg)
+    const a = i / 30 * TAU, x = Math.sin(a) * 26, z = -172 + Math.cos(a) * 20;
+    WAGONS.push({ x, y: hAt(x, z), z, h: a + Math.PI / 2 });
+  }
+  for (let i = 0; i < 6; i++) { const x = rand(-12, 12), z = rand(-180, -164); TENTS.push({ x, y: hAt(x, z), z, s: .8, t: [.55, .65, .85] }); }
+})();
+
+/* ---------- ızgara ---------- */
+const CELL = 8, GW = Math.ceil(HALF * 2 / CELL) + 1;
+const grid = Array.from({ length: GW * GW }, () => []);
+const cellOf = v => clamp(((v + HALF) / CELL) | 0, 0, GW - 1);
+function gridBuild() {
+  for (const c of grid) c.length = 0;
+  for (const s of S.soldiers) if (!s.dead) grid[cellOf(s.z) * GW + cellOf(s.x)].push(s);
+}
+function nearestEnemy(side, x, z, R) {
+  const r = Math.ceil(R / CELL), ci = cellOf(x), cj = cellOf(z); let best = null, bd = R * R;
+  for (let j = Math.max(cj - r, 0); j <= Math.min(cj + r, GW - 1); j++)
+    for (let i = Math.max(ci - r, 0); i <= Math.min(ci + r, GW - 1); i++) {
+      const cell = grid[j * GW + i];
+      for (let k = 0; k < cell.length; k++) {
+        const o = cell[k]; if (o.side === side || o.dead) continue;
+        const dx = o.x - x, dz = o.z - z, d2 = dx * dx + dz * dz; if (d2 < bd) { bd = d2; best = o; }
+      }
+    }
+  return best;
+}
+function enemiesIn(side, x, z, R, fn) {
+  const r = Math.ceil(R / CELL), ci = cellOf(x), cj = cellOf(z);
+  for (let j = Math.max(cj - r, 0); j <= Math.min(cj + r, GW - 1); j++)
+    for (let i = Math.max(ci - r, 0); i <= Math.min(ci + r, GW - 1); i++)
+      for (const o of grid[j * GW + i]) if (o.side !== side && !o.dead && (o.x - x) ** 2 + (o.z - z) ** 2 < R * R) fn(o);
+}
+
+/* ---------- parçacıklar ---------- */
+function emit(x, y, z, o) {
+  if (S.parts.length >= MAXP) return;
+  S.parts.push({ x, y, z, vx: o.vx || 0, vy: o.vy || 0, vz: o.vz || 0, life: o.life, max: o.life, s0: o.s0, s1: o.s1,
+    r: o.c[0], g: o.c[1], b: o.c[2], a: o.a, gr: o.gr || 0, dr: o.dr || 0, wk: o.wk || 0 });
+}
+function smoke(x, y, z, n, s) {
+  for (let i = 0; i < n; i++) { const g = rand(.76, .9);
+    emit(x + rand(-.4, .4), y + rand(0, .4), z + rand(-.4, .4), { vx: rand(-.8, .8), vy: rand(.3, 1.3), vz: rand(-.8, .8), life: rand(3.5, 7), s0: s * .35, s1: s * rand(1.8, 2.8), c: [g, g, g * .97], a: .5, dr: .9, wk: 1 }); }
+}
+function flash(x, y, z, s) { emit(x, y, z, { life: .13, s0: s, s1: s * 1.6, c: [1, .86, .5], a: 1 }); emit(x, y, z, { life: .25, s0: s * 2, s1: s * 3, c: [1, .6, .25], a: .35 }); }
+function dust(x, y, z, n, s) {
+  for (let i = 0; i < n; i++) emit(x + rand(-.6, .6), y + .2, z + rand(-.6, .6), { vx: rand(-1, 1), vy: rand(.2, 1), vz: rand(-1, 1), life: rand(1.2, 2.6), s0: s * .5, s1: s * rand(1.5, 2.4), c: [.58, .5, .38], a: .38, dr: 1.2, wk: .5 });
+}
+function burst(x, y, z) {
+  dust(x, y, z, 7, 2.2);
+  for (let i = 0; i < 10; i++) emit(x, y + .2, z, { vx: rand(-3, 3), vy: rand(3, 7), vz: rand(-3, 3), life: rand(.6, 1), s0: .35, s1: .25, c: [.33, .26, .18], a: 1, gr: G });
+}
+function splash(x, y, z) { for (let i = 0; i < 12; i++) emit(x, y + .1, z, { vx: rand(-1.5, 1.5), vy: rand(2, 5), vz: rand(-1.5, 1.5), life: rand(.5, .9), s0: .5, s1: .8, c: [.85, .9, .95], a: .75, gr: G }); }
+function updParts(dt) {
+  const P = S.parts;
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i]; p.life -= dt;
+    if (p.life <= 0) { P[i] = P[P.length - 1]; P.pop(); continue; }
+    const d = Math.max(0, 1 - p.dr * dt); p.vx *= d; p.vy *= d; p.vz *= d; p.vy -= p.gr * dt;
+    p.x += (p.vx + WIND[0] * p.wk) * dt; p.y += p.vy * dt; p.z += (p.vz + WIND[2] * p.wk) * dt;
+  }
+}
+
+/* ---------- birlikler ---------- */
+function addReg(key, type, name, n, x, z, cols) {
+  const T = TYPES[type], side = T.side, face = side ? 0 : Math.PI, rows = Math.ceil(n / cols);
+  const r = { key, T, side, name, n0: n, soldiers: [], cx: x, cz: z, ax: x, az: z, fx: x, fz: z, h: face, mode: 'hold', tx: x, tz: z, spdMul: 1, alive: n, dead: false };
+  const c = Math.cos(face), sn = Math.sin(face);
+  for (let i = 0; i < n; i++) {
+    const ox = (i % cols - (cols - 1) / 2) * T.gap, oz = -(((i / cols) | 0) - (rows - 1) / 2) * T.gap;
+    const sx = x + ox * c + oz * sn + rand(-.5, .5), sz = z - ox * sn + oz * c + rand(-.5, .5);
+    const tv = rand(.9, 1.1);
+    r.soldiers.push({ reg: r, T, side, x: sx, z: sz, y: hAt(sx, sz), vx: 0, vz: 0, h: face, hp: T.hp, cd: rand(0, 3), rt: rand(0, .5), foe: null,
+      dead: false, fall: 0, fs: 1, ph: rand(0, TAU), amp: 0, arm: 0, ox, oz, sc: rand(.94, 1.06),
+      tint: T.tint.map(k => clamp(k * tv * rand(.94, 1.06), 0, 1)) });
+  }
+  S.regs.push(r); S.soldiers.push(...r.soldiers); S.init[side] += n; return r;
+}
+function newWorld() {
+  S = { t: 0, soldiers: [], regs: [], cannons: [], proj: [], parts: [], si: 0, phase: 0, gunsOtt: false, gunsHun: false,
+    ended: false, king: null, lost: [0, 0], init: [0, 0], routX: 118, routZ: -178 };
+  // Osmanlı — Rumeli önde, top ve Yeniçeri merkezde, Anadolu sağda, akıncılar solda
+  addReg('rsL', 'sip', 'Rumeli Sipahileri', 80, -102, 40, 16);
+  addReg('raL', 'azap', 'Rumeli Azapları', 90, -36, 32, 18);
+  addReg('raR', 'azap', 'Rumeli Azapları', 90, 36, 32, 18);
+  addReg('rsR', 'sip', 'Rumeli Sipahileri', 60, 98, 40, 15);
+  addReg('janL', 'jan', 'Yeniçeri Ortaları', 90, -28, 87, 18);
+  addReg('janR', 'jan', 'Yeniçeri Ortaları', 90, 28, 87, 18);
+  addReg('kapi', 'kapi', 'Kapıkulu Süvarileri', 60, 0, 114, 15);
+  addReg('anS', 'anad', 'Anadolu Sipahileri', 110, 124, 90, 16);
+  addReg('anA', 'azap', 'Anadolu Azapları', 70, 80, 80, 14);
+  addReg('akn', 'akn', 'Akıncılar', 80, -152, 72, 16);
+  // Macar — iki hat
+  addReg('kn1', 'kn', 'Macar Ağır Süvarisi', 55, -25, -42, 11);
+  addReg('kn2', 'kn', 'Macar Ağır Süvarisi', 55, 25, -42, 11);
+  addReg('pkL', 'pike', 'Macar Piyadesi', 75, -82, -38, 15);
+  addReg('pkR', 'pike', 'Macar Piyadesi', 75, 82, -38, 15);
+  const g = addReg('guard', 'guard', 'Kraliyet Muhafızları · II. Lajos', 45, 0, -100, 9);
+  addReg('mL', 'merc', 'Paralı Piyade', 60, -54, -96, 12);
+  addReg('mR', 'merc', 'Paralı Piyade', 60, 54, -96, 12);
+  addReg('kres', 'kn', 'Szapolyai Süvarisi', 40, -106, -92, 8);
+  const k = g.soldiers[4]; k.king = true; k.tint = [.92, .74, .28]; k.hp = 30; S.king = k;
+  for (let i = 0; i < 14; i++) { const x = -52 + i * 8; S.cannons.push({ side: 0, x, z: CHAIN.z, y: hAt(x, CHAIN.z), h: Math.PI, cd: rand(0, 3), arm: 0, range: 175, reload: [5.5, 8.5], scatter: .035 }); }
+  for (let i = 0; i < 5; i++) { const x = -40 + i * 20; S.cannons.push({ side: 1, x, z: -26, y: hAt(x, -26), h: 0, cd: rand(0, 4), arm: 0, range: 150, reload: [7, 11], scatter: .07 }); }
+  if (!chainMesh) { // topları birbirine bağlayan zincir
+    const m = new MB(), oc = S.cannons.filter(c => c.side === 0);
+    for (let i = 0; i < oc.length - 1; i++) for (let s = 0; s < 4; s++) {
+      const x0 = lerp(oc[i].x + .6, oc[i + 1].x - .6, s / 4), x1 = lerp(oc[i].x + .6, oc[i + 1].x - .6, (s + 1) / 4), xm = (x0 + x1) / 2;
+      const sag = Math.sin((s + .5) / 4 * Math.PI) * .35;
+      m.box(xm, hAt(xm, CHAIN.z) + .55 - sag, CHAIN.z + .3, x1 - x0, .07, .07, C.iron);
+    }
+    chainMesh = makeMesh(m, 1);
+  }
+}
+const R = key => S.regs.find(r => r.key === key);
+function order(key, mode, tx, tz, o = {}) {
+  const r = R(key); if (!r || r.dead || r.mode === 'rout') return;
+  r.mode = mode; if (tx !== undefined) { r.tx = tx; r.tz = tz; }
+  if (mode !== 'engage' && mode !== 'rout') { r.cx = r.ax; r.cz = r.az; }
+  r.spdMul = o.spd || 1; r.after = o.after || 'hold'; r.hGoal = undefined;
+}
+function rout(r) { r.mode = 'rout'; }
+
+/* ---------- senaryo ---------- */
+const PHASES = [
+  { t: 0,   n: 'Ordular Mevzide', s: 'Mevzi', d: '29 Ağustos 1526, öğleden sonra. Osmanlı ordusu ovanın güneyindeki sırtlarda: Rumeli kuvvetleri önde, zincirli toplar ve Yeniçeriler merkezde. Macar ordusu ovada iki hat hâlinde dizildi.', f: [0, 10] },
+  { t: 8,   n: 'Macar Hücumu', s: 'Hücum', d: 'Tomori Pál\'ın zırhlı şövalyeleri ve piyadesi Rumeli birliklerinin üzerine yürüyor. İbrahim Paşa\'nın askerleri bir süre direniyor.', f: [0, 25] },
+  { t: 33,  n: 'Toplar ve Yeniçeriler', s: 'Top Ateşi', d: 'Rumeli birlikleri kanatlara çekilince hücum eden şövalyeler zincirli top hattının ve Yeniçeri tüfeklerinin önüne düşüyor.', f: [0, 58] },
+  { t: 68,  n: 'Kuşatma', s: 'Kuşatma', d: 'Behram Paşa\'nın Anadolu sipahileri sağdan, akıncılar geriden Macar ordusunu sarıyor. Çember daralıyor.', f: [10, 20] },
+  { t: 92, n: 'Bozgun', s: 'Bozgun', d: 'Macar ordusu dağılıyor; kaçanlar Tuna kıyısındaki bataklıklara ve Csele deresine sürükleniyor.', f: [70, -110] },
+];
+const END_T = 152;
+const SCRIPT = [
+  { t: 2,  f: () => { S.gunsHun = true; toast('Macar sahra topları ateş açtı.', 'hun'); } },
+  { t: 8,  f: () => { S.phase = 1;
+      order('kn1', 'charge', -32, 27); order('kn2', 'charge', 32, 27);
+      order('pkL', 'move', -80, 8); order('pkR', 'move', 80, 8);
+      toast('Tomori Pál hücum emrini verdi: zırhlı şövalyeler Rumeli hattına yükleniyor.', 'hun'); } },
+  { t: 18, f: () => {
+      order('raL', 'retreat', -104, 80, { spd: 1.9 }); order('raR', 'retreat', 70, 114, { spd: 1.9 });
+      order('rsL', 'retreat', -138, 64, { spd: 1.2 }); order('rsR', 'retreat', 142, 60, { spd: 1.2 });
+      order('kn1', 'charge', -16, 74); order('kn2', 'charge', 16, 74);
+      toast('Rumeli kuvvetleri kanatlara çekildi; merkez açıldı.', 'ott'); } },
+  { t: 33, f: () => { S.phase = 2; S.gunsOtt = true;
+      order('guard', 'move', 0, -22); order('mL', 'move', -50, -20); order('mR', 'move', 50, -20); order('kres', 'move', -100, -32);
+      toast('Zincirli toplar ve Yeniçeri tüfekleri ateş açtı!', 'ott'); } },
+  { t: 46, f: () => {
+      order('guard', 'charge', 0, 66); order('mL', 'charge', -42, 58); order('mR', 'charge', 42, 58); order('kres', 'charge', -72, 50);
+      toast('Kral II. Lajos ikinci hatla birlikte hücuma katıldı.', 'hun'); } },
+  { t: 68, f: () => { S.phase = 3;
+      for (const k of ['anS', 'anA', 'rsR', 'rsL', 'raL', 'raR']) order(k, 'engage');
+      order('akn', 'move', -70, -140, { after: 'engage', spd: 1.1 });
+      toast('Behram Paşa\'nın Anadolu sipahileri sağ kanattan saldırıyor.', 'ott'); } },
+  { t: 78, f: () => toast('Akıncılar Macar ordusunun gerisine sarktı.', 'ott') },
+  { t: 88, f: () => { for (const k of ['janL', 'janR', 'kapi']) order(k, 'engage'); toast('Yeniçeriler ve Kapıkulu süvarileri ileri atıldı.', 'ott'); } },
+  { t: 92, f: () => { S.phase = 4; for (const r of S.regs) if (r.side === 1 && !r.dead) rout(r);
+      toast('Macar ordusu bozguna uğradı; kaçanlar bataklıklara sürükleniyor.', 'hun'); } },
+  { t: 145, f: () => { if (S.king && !S.king.dead) drownKing(); } },
+  { t: END_T, f: () => { S.ended = true; showEnd(); } },
+];
+function drownKing() { const k = S.king; kill(k); splash(k.x, k.y, k.z); toast('Kral II. Lajos kaçarken Csele deresinde boğuldu.', 'hun'); }
+
+/* ---------- savaş ---------- */
+function kill(f) {
+  if (f.dead) return; f.dead = true; f.fall = .001; f.fs = Math.random() < .5 ? -1 : 1; S.lost[f.side]++;
+  dust(f.x, f.y, f.z, 2, f.T.cav ? 1.6 : 1);
+}
+function hurt(f, d) {
+  if (f.king && S.phase < 4) return;
+  f.hp -= d * (f.side ? .6 : .42); if (f.hp <= 0) kill(f);   // taraf bazlı denge
+}
+function strike(s, f) {
+  if (s.king) return;
+  s.arm = 1; const T = s.T;
+  let dmg = T.atk * rand(.6, 1.3);
+  if (T.cav && Math.hypot(s.vx, s.vz) > 4.5) dmg *= 1.7;       // hücum darbesi
+  if (f.T.cav && T.mesh === 'pike') dmg *= 1.5;                 // mızrak süvariye karşı
+  if (Math.random() < .6) hurt(f, dmg);
+}
+function shoot(s, f, d) {
+  const T = s.T, sn = Math.sin(s.h), cs = Math.cos(s.h);
+  const fx = s.x + sn * .9, fz = s.z + cs * .9, fy = s.y + (T.cav ? 2.3 : 1.4);
+  if (T.shot === 'musket') {
+    s.arm = .35; flash(fx, fy, fz + 0, .9); smoke(fx, fy, fz, 2, 1.5);
+    const p = T.acc * (1.25 - d / T.range * .6) + (f.T.cav ? .12 : 0);
+    if (Math.random() < p) hurt(f, 3.2);
+  } else {
+    s.arm = .6;
+    const tf = .55 + d / 34, sc = .5 + d * .045;
+    const tx = f.x + f.vx * tf + rand(-sc, sc), tz = f.z + f.vz * tf + rand(-sc, sc), ty = hAt(tx, tz) + .9;
+    S.proj.push({ k: 'arrow', side: s.side, x: fx, y: fy, z: fz, vx: (tx - fx) / tf, vz: (tz - fz) / tf, vy: (ty - fy) / tf + .5 * G * tf, b: 0 });
+  }
+}
+function updCannon(c, dt) {
+  c.arm = Math.max(0, c.arm - dt * 1.6);
+  if (!(c.side === 0 ? S.gunsOtt : S.gunsHun && S.phase < 3)) return;
+  c.cd -= dt; if (c.cd > 0) return;
+  let best = null, bd = c.range * c.range; const sn = Math.sin(c.h), cs = Math.cos(c.h);
+  for (const r of S.regs) {
+    if (r.side === c.side || r.dead) continue;
+    const dx = r.ax - c.x, dz = r.az - c.z, d2 = dx * dx + dz * dz;
+    if (d2 < bd && d2 > 196 && (dx * sn + dz * cs) / Math.sqrt(d2) > .35) { bd = d2; best = r; }
+  }
+  if (!best) { c.cd = 1; return; }
+  const t = best.soldiers[(Math.random() * best.soldiers.length) | 0]; if (t.dead) { c.cd = .15; return; }
+  c.cd = rand(c.reload[0], c.reload[1]); c.arm = 1;
+  const d = Math.hypot(t.x - c.x, t.z - c.z), tf = .35 + d / 85, sc = d * c.scatter;
+  const tx = t.x + t.vx * tf + rand(-sc, sc), tz = t.z + t.vz * tf + rand(-sc, sc), ty = hAt(tx, tz) + .5;
+  const mx = c.x + sn * 1.6, mz = c.z + cs * 1.6, my = c.y + .9;
+  S.proj.push({ k: 'ball', side: c.side, x: mx, y: my, z: mz, vx: (tx - mx) / tf, vz: (tz - mz) / tf, vy: (ty - my) / tf + .5 * G * tf, b: 2 });
+  flash(mx, my, mz, 3.5); smoke(mx, my, mz, 9, 4.5);
+}
+function updProj(dt) {
+  const P = S.proj;
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i];
+    p.vy -= G * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    let del = Math.abs(p.x) > HALF || Math.abs(p.z) > HALF;
+    if (!del && p.k === 'ball' && Math.random() < dt * 20) emit(p.x, p.y, p.z, { life: .8, s0: .5, s1: 1.2, c: [.8, .8, .78], a: .3, wk: .5 });
+    const gy = del ? 0 : hAt(p.x, p.z);
+    if (!del && p.y <= gy) {
+      if (p.k === 'arrow') { const e = nearestEnemy(p.side, p.x, p.z, 1.15); if (e) hurt(e, .85); del = true; }
+      else if (gy < WATER) { splash(p.x, WATER, p.z); del = true; }
+      else {
+        burst(p.x, gy, p.z);
+        enemiesIn(p.side, p.x, p.z, 2.5, e => { if (Math.random() < (p.side ? .3 : .38)) hurt(e, 9); });
+        if (p.b-- > 0 && Math.hypot(p.vx, p.vz) > 8) { p.y = gy + .05; p.vy = Math.abs(p.vy) * .3; p.vx *= .55; p.vz *= .55; }
+        else del = true;
+      }
+    }
+    if (del) { P[i] = P[P.length - 1]; P.pop(); }
+  }
+}
+function updReg(r, dt) {
+  let n = 0, ax = 0, az = 0;
+  for (const s of r.soldiers) if (!s.dead) { n++; ax += s.x; az += s.z; }
+  r.alive = n; if (!n) { r.dead = true; return; }
+  ax /= n; az /= n; r.ax = ax; r.az = az;
+  const k = Math.min(1, dt * 2); r.fx = lerp(r.fx, ax, k); r.fz = lerp(r.fz, az, k);
+  if (r.side === 1 && r.mode !== 'rout' && S.t > 60 && n / r.n0 < .25) { rout(r); toast(`${r.name} dağıldı.`, 'hun'); }
+  const m = r.mode;
+  if (m === 'move' || m === 'charge' || m === 'retreat') {
+    const dx = r.tx - r.cx, dz = r.tz - r.cz, d = Math.hypot(dx, dz);
+    const lag = Math.hypot(ax - r.cx, az - r.cz), kk = clamp(1.5 - lag / 12, .2, 1);
+    const sp = r.T.spd * r.spdMul * (m === 'charge' ? 1 : .62) * kk;
+    if (d > 1) { const st = Math.min(d, sp * dt); r.cx += dx / d * st; r.cz += dz / d * st; r.h = angLerp(r.h, Math.atan2(dx, dz), Math.min(1, dt * 2)); }
+    else { r.mode = m === 'charge' ? 'engage' : r.after; if (r.mode === 'hold') r.hGoal = r.side ? 0 : Math.PI; }
+  } else if (m === 'hold') { if (r.hGoal !== undefined) r.h = angLerp(r.h, r.hGoal, Math.min(1, dt * 1.2)); }
+  else if (m === 'engage') {
+    r.rt = (r.rt || 0) - dt;
+    if (r.rt <= 0) { r.rt = 1; let best = null, bd = 1e12;
+      for (const o of S.regs) { if (o.side === r.side || o.dead) continue; const d2 = (o.ax - ax) ** 2 + (o.az - az) ** 2; if (d2 < bd) { bd = d2; best = o; } }
+      r.tgt = best; }
+    if (r.tgt && !r.tgt.dead) { r.tx = r.tgt.ax; r.tz = r.tgt.az; r.h = angLerp(r.h, Math.atan2(r.tx - ax, r.tz - az), Math.min(1, dt * 2)); }
+    r.cx = ax; r.cz = az;
+  } else { r.cx = ax; r.cz = az; }
+}
+function updSoldier(s, dt) {
+  if (s.dead) { if (s.fall < 1) s.fall = Math.min(1, s.fall + dt * 1.6); return; }
+  const r = s.reg, T = s.T, mode = r.mode, passive = mode === 'rout' || mode === 'retreat';
+  const canShoot = T.range && (mode === 'hold' || mode === 'engage');
+  s.cd -= dt; s.rt -= dt; if (s.arm > 0) s.arm = Math.max(0, s.arm - dt * 2.5);
+  if (s.rt <= 0) {
+    s.rt = rand(.3, .6);
+    let ag = passive ? 0 : mode === 'engage' ? 18 : mode === 'hold' ? 12 : T.cav ? 9 : 7;
+    if (canShoot) ag = Math.max(ag, T.range);
+    s.foe = ag ? nearestEnemy(s.side, s.x, s.z, ag) : null;
+  }
+  if (s.foe && (s.foe.dead || (mode === 'charge' && s.foe.reg.mode === 'retreat'))) s.foe = null;
+  let gx = null, gz = 0, face = null, stand = false;
+  let spd = T.spd * r.spdMul * (mode === 'charge' ? 1.25 : 1);
+  if (mode === 'rout') {
+    if (s.king) { gx = S.phase >= 4 ? KING_GOAL.x : 0; gz = S.phase >= 4 ? KING_GOAL.z : -150; } else { gx = S.routX + s.ox * 2.2; gz = S.routZ + s.oz * 2.2; }
+    spd *= 1.35;
+  } else if (s.foe) {
+    const f = s.foe, dx = f.x - s.x, dz = f.z - s.z, d = Math.hypot(dx, dz) || .01;
+    face = Math.atan2(dx, dz);
+    if (canShoot && d > 6 && d <= T.range + 2) { stand = true; if (s.cd <= 0) { shoot(s, f, d); s.cd = rand(T.reload[0], T.reload[1]); } }
+    else { const rr = T.reach * .85; gx = f.x - dx / d * rr; gz = f.z - dz / d * rr; if (d < T.reach + .5 && s.cd <= 0) { strike(s, f); s.cd = T.cdm * rand(.8, 1.25); } }
+  } else {
+    const c = Math.cos(r.h), sn = Math.sin(r.h), bx = mode === 'engage' ? r.tx : r.cx, bz = mode === 'engage' ? r.tz : r.cz;
+    gx = bx + s.ox * c + s.oz * sn; gz = bz - s.ox * sn + s.oz * c;
+  }
+  let dvx = 0, dvz = 0;
+  if (!stand && gx !== null) {
+    const dx = gx - s.x, dz = gz - s.z, d = Math.hypot(dx, dz);
+    if (d > .2) { const sp = spd * Math.min(1, d / (T.cav ? 4 : 2)); dvx = dx / d * sp; dvz = dz / d * sp; }
+  }
+  // ayrışma (birbirinin içine girmesinler)
+  let px = 0, pz = 0; const rad = T.cav ? 1.45 : .8, ci = cellOf(s.x), cj = cellOf(s.z);
+  for (let j = Math.max(cj - 1, 0); j <= Math.min(cj + 1, GW - 1); j++)
+    for (let i = Math.max(ci - 1, 0); i <= Math.min(ci + 1, GW - 1); i++) {
+      const cell = grid[j * GW + i];
+      for (let q = 0; q < cell.length; q++) {
+        const o = cell[q]; if (o === s || o.dead) continue;
+        const dx = s.x - o.x, dz = s.z - o.z, d2 = dx * dx + dz * dz, rr = rad + (o.T.cav ? 1.45 : .8);
+        if (d2 < rr * rr && d2 > 1e-6) { const d = Math.sqrt(d2), f = (rr - d) / rr * 7; px += dx / d * f; pz += dz / d * f; }
+      }
+    }
+  const gh = hAt(s.x, s.z), wet = gh < -.6 ? .4 : 1, kk = Math.min(1, (T.cav ? 2.4 : 6) * dt);
+  s.vx += (dvx * wet - s.vx) * kk; s.vz += (dvz * wet - s.vz) * kk;
+  s.x = clamp(s.x + (s.vx + px) * dt, -HALF + 3, HALF - 3); s.z = clamp(s.z + (s.vz + pz) * dt, -HALF + 3, HALF - 3);
+  if (s.side === 1 && Math.abs(s.x) < CHAIN.x && s.z > CHAIN.z - 2.5 && s.z < CHAIN.z + 2) { s.z = CHAIN.z - 2.5; s.vz = Math.min(s.vz, 0); }
+  s.y = hAt(s.x, s.z);
+  if (mode === 'rout') {
+    if (s.king) { if (S.phase >= 4 && s.y < -.8) drownKing(); }
+    else if (s.z < -75 || (s.x - S.routX) ** 2 + (s.z - S.routZ) ** 2 < 200) { s.dead = s.escaped = true; }
+    else if (s.y < -1.3 && Math.random() < dt * .5) { kill(s); splash(s.x, WATER, s.z); }
+  }
+  const sp = Math.hypot(s.vx, s.vz);
+  s.ph += dt * sp * (T.cav ? 1.1 : 2.8);
+  s.amp = lerp(s.amp, Math.min(1, sp / (T.cav ? 3 : 1.5)), Math.min(1, dt * 6));
+  const th = face !== null && sp < 2 ? face : sp > .5 ? Math.atan2(s.vx, s.vz) : r.h;
+  s.h = angLerp(s.h, th, Math.min(1, dt * (T.cav ? 3 : 6)));
+  if (T.cav && sp > 5 && Math.random() < dt * 1.4) dust(s.x, s.y, s.z, 1, 1.8);
+}
+function step(dt) {
+  S.t += dt;
+  while (S.si < SCRIPT.length && S.t >= SCRIPT[S.si].t) SCRIPT[S.si++].f();
+  gridBuild();
+  for (const r of S.regs) if (!r.dead) updReg(r, dt);
+  for (const s of S.soldiers) updSoldier(s, dt);
+  for (const c of S.cannons) updCannon(c, dt);
+  updProj(dt); updParts(dt);
+}
+
+/* =========================================================================
+   KAMERA
+   ========================================================================= */
+const SUN = (() => { const v = [-.55, .58, .6], l = Math.hypot(...v); return v.map(k => k / l); })();
+const FOG = [.83, .8, .7], FOV = 45 * Math.PI / 180;
+const cam = { tx: 0, tz: 0, yaw: .6, pitch: .42, dist: 300 }, goal = { ...cam };
+const PRESETS = {
+  top: { tx: 0, tz: -15, yaw: 0, pitch: 1.3, dist: 380 },
+  ott: { tx: 0, tz: 58, yaw: 0, pitch: .17, dist: 78 },
+  hun: { tx: 0, tz: -55, yaw: Math.PI, pitch: .2, dist: 85 },
+};
+let camMode = 'cine', eye = [0, 0, 0], VP = null, W = 1, H = 1, focal = 1;
+const keys = new Set();
+
+function persp(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2), nf = 1 / (n - f); return [t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) * nf, -1, 0, 0, 2 * f * n * nf, 0]; }
+function lookAt(e, c) {
+  let z = [e[0] - c[0], e[1] - c[1], e[2] - c[2]], l = Math.hypot(...z); z = z.map(k => k / l);
+  let x = [z[2], 0, -z[0]]; l = Math.hypot(...x) || 1; x = x.map(k => k / l);            // up=(0,1,0) × z
+  const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  const d = v => v[0] * e[0] + v[1] * e[1] + v[2] * e[2];
+  return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -d(x), -d(y), -d(z), 1];
+}
+function mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+function project(x, y, z) {
+  const m = VP, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (w <= .1) return null;
+  const cx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w, cy = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+  return [(cx * .5 + .5) * cv.clientWidth, (.5 - cy * .5) * cv.clientHeight, w];
+}
+function setCam(mode) {
+  camMode = mode;
+  for (const b of document.querySelectorAll('#camSeg button')) b.classList.toggle('on', b.dataset.c === mode);
+  if (PRESETS[mode]) Object.assign(goal, PRESETS[mode]);
+}
+function toFree() { if (camMode !== 'free') setCam('free'); }
+function cineGoal(dt) {
+  let fx = 0, fz = 0;
+  if (!started) { goal.yaw += dt * .04; goal.pitch = .42; goal.dist = 290; }
+  else {
+    const f = PHASES[S.phase].f; fx = f[0]; fz = f[1];
+    let n = 0, ax = 0, az = 0;
+    for (const s of S.soldiers) if (!s.dead && s.foe && (s.foe.x - s.x) ** 2 + (s.foe.z - s.z) ** 2 < 16) { n++; ax += s.x; az += s.z; }
+    if (n > 12 && S.phase < 4) { fx = lerp(fx, ax / n, .7); fz = lerp(fz, az / n, .7); }
+    goal.yaw += dt * .06; goal.pitch = .36 + .08 * Math.sin(S.t * .05); goal.dist = 125 + 35 * Math.sin(S.t * .037);
+  }
+  const k = Math.min(1, dt * .6); goal.tx = lerp(goal.tx, fx, k); goal.tz = lerp(goal.tz, fz, k);
+}
+function updCam(dt) {
+  if (camMode === 'cine') cineGoal(dt);
+  const pan = goal.dist * .9 * dt, fx = -Math.sin(goal.yaw), fz = -Math.cos(goal.yaw);
+  if (keys.size) {
+    let mx = 0, mz = 0;
+    if (keys.has('w') || keys.has('arrowup')) mz += 1; if (keys.has('s') || keys.has('arrowdown')) mz -= 1;
+    if (keys.has('d') || keys.has('arrowright')) mx += 1; if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
+    if (keys.has('q')) goal.yaw += dt * 1.2; if (keys.has('e')) goal.yaw -= dt * 1.2;
+    if (mx || mz || keys.has('q') || keys.has('e')) { toFree(); goal.tx += (fx * mz - fz * mx) * pan; goal.tz += (fz * mz + fx * mx) * pan; }
+  }
+  goal.tx = clamp(goal.tx, -HALF, HALF); goal.tz = clamp(goal.tz, -HALF, HALF);
+  goal.pitch = clamp(goal.pitch, .06, 1.45); goal.dist = clamp(goal.dist, 14, 460);
+  const k = 1 - Math.exp(-dt * 4);
+  cam.tx = lerp(cam.tx, goal.tx, k); cam.tz = lerp(cam.tz, goal.tz, k); cam.dist = lerp(cam.dist, goal.dist, k);
+  cam.pitch = lerp(cam.pitch, goal.pitch, k); cam.yaw = angLerp(cam.yaw, goal.yaw, k);
+  const ty = Math.max(hAt(cam.tx, cam.tz), WATER) + 2, cp = Math.cos(cam.pitch);
+  eye = [cam.tx + cam.dist * cp * Math.sin(cam.yaw), ty + cam.dist * Math.sin(cam.pitch), cam.tz + cam.dist * cp * Math.cos(cam.yaw)];
+  eye[1] = Math.max(eye[1], hAt(eye[0], eye[2]) + 2.5, WATER + 2);
+  VP = mul(persp(FOV, W / H, .8, 1800), lookAt(eye, [cam.tx, ty, cam.tz]));
+}
+
+/* =========================================================================
+   ÇİZİM
+   ========================================================================= */
+const FLAGCOL = { r: [.8, .1, .1], a: [.12, .45, .22], j: [.9, .74, .22], k: [.85, .15, .12] };
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75), w = cv.clientWidth * dpr | 0, h = cv.clientHeight * dpr | 0;
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  W = w; H = h; focal = H / (2 * Math.tan(FOV / 2));
+}
+function render(time) {
+  gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND); gl.depthMask(true);
+  gl.useProgram(MP.p);
+  gl.uniformMatrix4fv(MP.uVP, false, VP); gl.uniform1f(MP.uTime, time);
+  gl.uniform3fv(MP.uCam, eye); gl.uniform3fv(MP.uSun, SUN); gl.uniform3fv(MP.uFog, FOG); gl.uniform1f(MP.uFogD, 520);
+
+  inst(M.terrain, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0); drawMesh(M.terrain);
+  inst(chainMesh, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0); drawMesh(chainMesh);
+  for (const t of TREES) inst(M.tree, t.x, t.y, t.z, t.h, t.t[0], t.t[1], t.t[2], 0, t.s, 0, 0, 0);
+  for (const t of TENTS) inst(M.tent, t.x, t.y, t.z, t.z > 0 ? Math.PI : 0, t.t[0], t.t[1], t.t[2], 0, t.s, 0, 0, 0);
+  for (const w of WAGONS) inst(M.wagon, w.x, w.y, w.z, w.h, 1, 1, 1, 0, 1, 0, 0, 0);
+  drawMesh(M.tree); drawMesh(M.tent); drawMesh(M.wagon);
+
+  // padişah ve tuğlar
+  inst(M.sip, 0, hAt(0, 128), 128, Math.PI, .97, .96, .9, 0, 1.08, 0, 0, 0);
+  for (const [x, z] of [[-3.5, 131], [3.5, 131], [-9, 150], [0, 158], [9, 150]]) inst(M.tug, x, hAt(x, z), z, 0, 1, 1, 1, 0, 1, 0, 0, 0);
+  drawMesh(M.tug);
+
+  for (const c of S.cannons) inst(M.cannon, c.x, c.y, c.z, c.h, 1, 1, 1, 0, 1.25, 0, 0, c.arm * .15);
+  drawMesh(M.cannon, 0, .86, -.75);
+
+  S.regs.forEach((r, i) => {
+    if (r.dead || (r.side === 1 && r.mode === 'rout')) return;
+    const y = hAt(r.fx, r.fz);
+    if (r.side === 0) { const c = FLAGCOL[r.key[0] === 'r' ? 'r' : r.key[0]] || FLAGCOL.r; inst(M.flagO, r.fx, y, r.fz, -.37, c[0], c[1], c[2], i, 1.25, 0, 0, 0); }
+    else inst(r.key === 'guard' ? M.flagHB : M.flagH, r.fx, y, r.fz, -.37, 1, 1, 1, i, 1.25, 0, 0, 0);
+  });
+  drawMesh(M.flagO); drawMesh(M.flagH); drawMesh(M.flagHB);
+
+  for (const s of S.soldiers) {
+    if (s.escaped) continue;
+    const t = s.tint;
+    inst(M[s.T.mesh], s.x, s.y, s.z, s.h, t[0], t[1], t[2], s.ph, s.sc * (s.king ? 1.12 : 1), s.dead ? s.fs * s.fall : 0, s.dead ? 0 : s.amp, s.arm);
+  }
+  drawMesh(M.jan, .9, 1.36, 0); drawMesh(M.azap, .9, 1.36, 0); drawMesh(M.pike, .9, 1.55, 0);
+  drawMesh(M.sip, 1.1, 2.25, 0); drawMesh(M.kn, 1.1, 2.25, 0);
+
+  // parçacıklar + mermiler
+  const P = S.parts;
+  for (const p of P) p.dd = (p.x - eye[0]) ** 2 + (p.y - eye[1]) ** 2 + (p.z - eye[2]) ** 2;
+  P.sort((a, b) => b.dd - a.dd);
+  let n = 0; const B = PBUF;
+  const put = (x, y, z, r, g, b, a, s, dd) => {
+    if (n >= MAXP) return; const f = clamp(1 - Math.exp(-Math.pow(Math.sqrt(dd) / 520, 1.7)), 0, 1), o = n++ * 8;
+    B[o] = x; B[o + 1] = y; B[o + 2] = z; B[o + 3] = lerp(r, FOG[0], f); B[o + 4] = lerp(g, FOG[1], f); B[o + 5] = lerp(b, FOG[2], f); B[o + 6] = a; B[o + 7] = s;
+  };
+  for (const p of S.proj) {
+    const dd = (p.x - eye[0]) ** 2 + (p.y - eye[1]) ** 2 + (p.z - eye[2]) ** 2;
+    if (p.k === 'ball') put(p.x, p.y, p.z, .08, .08, .08, 1, .75, dd); else put(p.x, p.y, p.z, .18, .13, .08, .9, .3, dd);
+  }
+  for (const p of P) {
+    const t = 1 - p.life / p.max, a = p.a * Math.min(1, p.max < .3 ? 1 : t / .08) * (1 - t);
+    put(p.x, p.y, p.z, p.r, p.g, p.b, a, lerp(p.s0, p.s1, t), p.dd);
+  }
+  if (n) {
+    gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    gl.useProgram(PP.p); gl.uniformMatrix4fv(PP.uVP, false, VP); gl.uniform1f(PP.uFocal, focal);
+    gl.bindVertexArray(pVao); gl.bindBuffer(gl.ARRAY_BUFFER, pVbo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, B, 0, n * 8);
+    gl.drawArrays(gl.POINTS, 0, n); gl.bindVertexArray(null); gl.depthMask(true);
+  }
+  // güneş parıltısı
+  const sp = project(eye[0] + SUN[0] * 2000, eye[1] + SUN[1] * 2000, eye[2] + SUN[2] * 2000), sun = $('sun');
+  if (sp) { sun.style.display = ''; sun.style.left = sp[0] + 'px'; sun.style.top = sp[1] + 'px'; } else sun.style.display = 'none';
+}
+
+/* =========================================================================
+   ARAYÜZ
+   ========================================================================= */
+let started = false, paused = false, speed = 1, labelsOn = true, lastUI = 0, shownPhase = -1, endTimer = 0;
+const fmt = v => Math.round(v).toLocaleString('tr-TR');
+function toast(msg, side) {
+  const L = $('log'), d = document.createElement('div');
+  d.className = 'toast ' + (side || ''); d.textContent = msg; L.appendChild(d);
+  while (L.children.length > 5) L.firstChild.remove();
+  setTimeout(() => d.classList.add('out'), 8000); setTimeout(() => d.remove(), 9000);
+}
+function makeLabels() {
+  const L = $('labels'); L.innerHTML = '';
+  for (const r of S.regs) { const d = document.createElement('div'); d.className = 'lab s' + r.side; d.style.left = '0'; d.style.top = '0'; L.appendChild(d); r.el = d; r.shown = -1; }
+}
+function updLabels() {
+  for (const r of S.regs) {
+    const el = r.el, p = labelsOn && !r.dead ? project(r.fx, hAt(r.fx, r.fz) + 9, r.fz) : null;
+    if (!p || p[2] > 360) { el.style.display = 'none'; continue; }
+    el.style.display = ''; el.style.transform = `translate(${p[0] | 0}px,${p[1] | 0}px) translate(-50%,-100%)`;
+    el.style.opacity = clamp(1.4 - p[2] / 300, .25, 1);
+    const key = r.alive * 2 + (r.mode === 'rout' ? 1 : 0);
+    if (key !== r.shown) { r.shown = key; el.innerHTML = `${r.name}${r.mode === 'rout' ? ' · kaçıyor' : ''}<i>${fmt(r.alive * 60)}</i>`; }
+  }
+}
+function buildTimeline() {
+  const T = $('tlMarks'); T.innerHTML = '';
+  PHASES.forEach((p, i) => {
+    const x = p.t / END_T * 100, m = ((p.t + (PHASES[i + 1] ? PHASES[i + 1].t : END_T)) / 2) / END_T * 100;
+    T.insertAdjacentHTML('beforeend', `<span style="left:${x}%"></span><em style="left:${i ? m + '%' : '0;transform:none'}">${p.s}</em>`);
+  });
+}
+function updUI(now) {
+  if (now - lastUI < 120) return; lastUI = now;
+  const a0 = S.init[0] - S.lost[0], a1 = S.init[1] - S.lost[1];
+  $('ottN').textContent = fmt(a0 * 60); $('hunN').textContent = fmt(a1 * 60);
+  $('ottB').style.width = a0 / S.init[0] * 100 + '%'; $('hunB').style.width = a1 / S.init[1] * 100 + '%';
+  $('clock').textContent = '≈ ' + Math.round(Math.min(S.t, END_T) / END_T * 110) + ' dk';
+  $('tlFill').style.width = Math.min(100, S.t / END_T * 100) + '%';
+  if (S.phase !== shownPhase) { shownPhase = S.phase; const p = PHASES[S.phase]; $('phN').textContent = S.phase + 1; $('phT').textContent = p.n; $('phD').textContent = p.d; }
+  drawMini();
+}
+function showEnd() {
+  clearTimeout(endTimer);
+  endTimer = setTimeout(() => { $('eO').textContent = '≈ ' + fmt(S.lost[0] * 60); $('eH').textContent = '≈ ' + fmt(S.lost[1] * 60); $('end').classList.remove('hidden'); }, 2500);
+}
+function reset() {
+  clearTimeout(endTimer); newWorld(); makeLabels(); $('log').innerHTML = ''; $('end').classList.add('hidden'); $('intro').classList.add('hidden');
+  shownPhase = -1; started = true; paused = false; $('bPlay').textContent = '❚❚'; setCam('cine');
+  Music.restart(); Music.start();
+}
+
+/* ---------- mini harita ---------- */
+const mini = $('mini'), mctx = mini.getContext('2d'), MS = mini.width;
+const mapBg = document.createElement('canvas'); mapBg.width = mapBg.height = MS;
+(() => {
+  const c = mapBg.getContext('2d'), img = c.createImageData(MS, MS);
+  for (let j = 0; j < MS; j++) for (let i = 0; i < MS; i++) {
+    const x = -HALF + (i + .5) / MS * HALF * 2, z = -HALF + (j + .5) / MS * HALF * 2, h = hAt(x, z);
+    let col = h < WATER ? [.2, .33, .42] : groundCol(x, z, h, 0);
+    const sh = h < WATER ? 1 : clamp(1 + (hAt(x - 2, z - 2) - h) * .12, .7, 1.25), o = (j * MS + i) * 4;
+    img.data[o] = col[0] * sh * 230; img.data[o + 1] = col[1] * sh * 230; img.data[o + 2] = col[2] * sh * 230; img.data[o + 3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+})();
+const toMap = v => (v + HALF) / (HALF * 2) * MS;
+function drawMini() {
+  mctx.drawImage(mapBg, 0, 0);
+  mctx.fillStyle = 'rgba(0,0,0,.12)'; mctx.fillRect(0, 0, MS, MS);
+  for (const s of S.soldiers) { if (s.dead) continue; mctx.fillStyle = s.side ? '#6aa0f0' : '#e04a3a'; mctx.fillRect(toMap(s.x) - 1.5, toMap(s.z) - 1.5, 3, 3); }
+  mctx.fillStyle = '#111'; for (const c of S.cannons) mctx.fillRect(toMap(c.x) - 2, toMap(c.z) - 2, 4, 4);
+  const cx = toMap(cam.tx), cz = toMap(cam.tz), ex = toMap(eye[0]), ez = toMap(eye[2]);
+  mctx.strokeStyle = '#f3d58a'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(ex, ez); mctx.lineTo(cx, cz); mctx.stroke();
+  mctx.beginPath(); mctx.arc(cx, cz, 5, 0, TAU); mctx.stroke();
+  mctx.fillStyle = 'rgba(243,213,138,.9)'; mctx.font = '18px Georgia'; mctx.fillText('K', 8, 22);
+}
+mini.addEventListener('pointerdown', e => {
+  const b = mini.getBoundingClientRect();
+  goal.tx = (e.clientX - b.left) / b.width * HALF * 2 - HALF; goal.tz = (e.clientY - b.top) / b.height * HALF * 2 - HALF;
+  toFree();
+});
+
+/* ---------- girdi ---------- */
+const ptrs = new Map(); let pinch = null;
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }); cv.classList.add('drag'); pinch = null; });
+cv.addEventListener('pointerup', e => { ptrs.delete(e.pointerId); pinch = null; if (!ptrs.size) cv.classList.remove('drag'); });
+cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); pinch = null; });
+cv.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (pinch) { goal.dist *= pinch.d / d; panBy(mx - pinch.mx, my - pinch.my); }
+    pinch = { d, mx, my }; toFree(); return;
+  }
+  toFree();
+  if (p.b === 2 || p.sh || e.shiftKey) panBy(dx, dy);
+  else { goal.yaw -= dx * .005; goal.pitch += dy * .004; }
+});
+function panBy(dx, dy) {
+  const k = goal.dist * .0022, fx = -Math.sin(goal.yaw), fz = -Math.cos(goal.yaw);
+  goal.tx += (fz * dx + fx * dy) * k; goal.tz += (-fx * dx + fz * dy) * k;
+}
+cv.addEventListener('wheel', e => { e.preventDefault(); toFree(); goal.dist *= Math.exp(e.deltaY * .0012); }, { passive: false });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); $('bPlay').click(); return; }
+  if (k === 'r') { reset(); return; }
+  if (k === 'l') { $('bLab').click(); return; }
+  if (k === 'm') { $('bMus').click(); return; }
+  const cams = { 1: 'cine', 2: 'free', 3: 'top', 4: 'ott', 5: 'hun' }; if (cams[k]) { setCam(cams[k]); return; }
+  keys.add(k);
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+
+$('bStart').onclick = () => { $('intro').classList.add('hidden'); started = true; paused = false; setCam('cine'); Music.start(); };
+$('bPlay').onclick = () => { if (!started) { $('bStart').click(); return; } paused = !paused; $('bPlay').textContent = paused ? '▶' : '❚❚'; Music.setPaused(paused); };
+$('bReset').onclick = reset;
+$('bAgain').onclick = reset;
+$('bFree').onclick = () => { $('end').classList.add('hidden'); setCam('free'); };
+$('bLab').onclick = () => { labelsOn = !labelsOn; $('bLab').classList.toggle('on', labelsOn); };
+$('bMus').onclick = () => $('bMus').classList.toggle('on', Music.toggle());
+for (const b of document.querySelectorAll('#speed button')) b.onclick = () => {
+  speed = +b.dataset.s; for (const o of document.querySelectorAll('#speed button')) o.classList.toggle('on', o === b);
+};
+for (const b of document.querySelectorAll('#camSeg button')) b.onclick = () => setCam(b.dataset.c);
+
+/* =========================================================================
+   MEHTER — Web Audio ile anlık sentezlenen özgün savaş müziği (hicaz makamı, D karar)
+   Davul, kös, nakkare, zil, iki zurna ve boru; yoğunluk savaşın evresine göre artar.
+   ========================================================================= */
+const Music = (() => {
+  let ac = null, master, dry, wet, zBus, noiseBuf, drone, next = 0, step = 0, tempo = 72, enabled = true;
+  const SEMI = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
+  const hz = n => { const m = /^([A-G])(#|b)?(\d)$/.exec(n); return 440 * 2 ** ((SEMI[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (m[3] - 4) * 12) / 12); };
+  const SCALE = []; for (const o of [4, 5, 6]) for (const n of ['D', 'Eb', 'F#', 'G', 'A', 'Bb', 'C']) SCALE.push(hz(n + o));
+  const upper = f => SCALE.find(s => s > f * 1.02) || f;
+  // her cümle 16 sekizlik (2 ölçü): nota süre nota süre ...
+  const PH = {
+    A: 'A4 2 D5 2 Eb5 1 F#5 1 G5 2 A5 3 G5 1 F#5 2 Eb5 1 F#5 1',
+    B: 'G5 2 F#5 1 G5 1 A5 2 Bb5 2 A5 1 G5 1 F#5 1 Eb5 1 D5 4',
+    C: 'D6 2 C6 1 Bb5 1 A5 2 D6 2 C6 1 Bb5 1 A5 1 G5 1 A5 4',
+    D: 'Bb5 1 A5 1 G5 1 F#5 1 G5 2 A5 2 F#5 1 Eb5 1 F#5 1 G5 1 D5 4',
+  };
+  const SONG = [];
+  for (const k of 'ABABCDCD') { const t = PH[k].split(' '); for (let i = 0; i < t.length; i += 2) { const len = +t[i + 1]; SONG.push({ f: hz(t[i]), len }); for (let j = 1; j < len; j++) SONG.push(null); } }
+  const TEMPO = [72, 88, 94, 100, 84];      // evre yoğunluğuna göre (BPM, dörtlük)
+
+  function init() {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = enabled ? .6 : 0;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    master.connect(comp).connect(ac.destination);
+    const rev = ac.createConvolver(), len = ac.sampleRate * 2.8 | 0, ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    rev.buffer = ir; const rg = ac.createGain(); rg.gain.value = .5; rev.connect(rg).connect(master);
+    const bus = (d, w) => { const g = ac.createGain(), a = ac.createGain(), b = ac.createGain(); a.gain.value = d; b.gain.value = w; g.connect(a).connect(master); g.connect(b).connect(rev); return g; };
+    dry = bus(1, .22); wet = bus(.7, .6); zBus = bus(.85, .45);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+    const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    drone = ac.createGain(); drone.gain.value = 0;                 // dem: alçak D–A burdonu
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+    for (const [f, dt] of [[hz('D3'), 0], [hz('A3'), 5], [hz('D3'), -7]]) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = dt; o.connect(lp); o.start(); }
+    lp.connect(drone).connect(wet);
+    next = ac.currentTime + .1;
+    setInterval(schedule, 25);
+  }
+
+  /* ---------- enstrümanlar ---------- */
+  function env(g, t, a, peak, d) { g.gain.setValueAtTime(1e-4, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(1e-4, t + a + d); }
+  function noise(t, dur, type, f, q, peak, dest) {
+    const s = ac.createBufferSource(), bf = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = noiseBuf; bf.type = type; bf.frequency.value = f; bf.Q.value = q; env(g, t, .003, peak, dur);
+    s.connect(bf).connect(g).connect(dest); s.start(t, Math.random()); s.stop(t + dur + .05);
+  }
+  function boom(t, f0, f1, dur, peak, dest) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * .5); env(g, t, .004, peak, dur);
+    o.connect(g).connect(dest); o.start(t); o.stop(t + dur + .05);
+  }
+  const davul = (t, dum, v) => dum
+    ? (boom(t, 115, 46, .6, .9 * v, dry), noise(t, .07, 'lowpass', 1200, .7, .3 * v, dry))       // düm: merkez vuruşu
+    : (noise(t, .08, 'bandpass', 2400, 1.4, .5 * v, dry), boom(t, 280, 190, .09, .22 * v, dry));  // tek: çubuk vuruşu
+  const kos = (t, v) => { boom(t, 68, 30, 1.8, .95 * v, wet); noise(t, 1.3, 'lowpass', 160, .6, .45 * v, wet); };
+  const nakkare = (t, hi, v) => { boom(t, hi ? 440 : 330, hi ? 310 : 230, .13, .22 * v, dry); noise(t, .03, 'bandpass', 4000, 2, .1 * v, dry); };
+  const zil = (t, v) => { noise(t, 1.3, 'highpass', 6000, .6, .2 * v, wet); noise(t, .6, 'bandpass', 8800, 2, .12 * v, wet); };
+  function zurna(t, f, dur, v, det) {
+    const o1 = ac.createOscillator(), o2 = ac.createOscillator(), mix = ac.createGain(), sq = ac.createGain();
+    o1.type = 'sawtooth'; o2.type = 'square'; sq.gain.value = .3;
+    for (const o of [o1, o2]) { o.frequency.setValueAtTime(f * .965, t); o.frequency.exponentialRampToValueAtTime(f, t + .05); o.detune.value = det; }
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5.5 + Math.random();
+    lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * .013, t + Math.max(.1, dur * .6));
+    lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+    const hp = ac.createBiquadFilter(), pk = ac.createBiquadFilter(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    hp.type = 'highpass'; hp.frequency.value = 450;
+    pk.type = 'peaking'; pk.frequency.value = 2600; pk.Q.value = 1.8; pk.gain.value = 9;   // genizden gelen zurna sesi
+    lp.type = 'lowpass'; lp.frequency.value = 5200;
+    const hold = Math.max(t + .035, t + dur - .04);
+    g.gain.setValueAtTime(1e-4, t); g.gain.exponentialRampToValueAtTime(v, t + .03); g.gain.setValueAtTime(v * .9, hold); g.gain.exponentialRampToValueAtTime(1e-4, hold + .09);
+    o1.connect(mix); o2.connect(sq).connect(mix); mix.connect(hp).connect(pk).connect(lp).connect(g).connect(zBus);
+    for (const o of [o1, o2, lfo]) { o.start(t); o.stop(hold + .15); }
+  }
+  function boru(t, f, dur, v) {
+    const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f * .98, t); o.frequency.exponentialRampToValueAtTime(f, t + .06);
+    lp.type = 'lowpass'; lp.Q.value = 3; lp.frequency.setValueAtTime(500, t); lp.frequency.exponentialRampToValueAtTime(2800, t + .08); lp.frequency.exponentialRampToValueAtTime(1400, t + dur);
+    const hold = Math.max(t + .06, t + dur - .05);
+    g.gain.setValueAtTime(1e-4, t); g.gain.exponentialRampToValueAtTime(v, t + .05); g.gain.setValueAtTime(v * .8, hold); g.gain.exponentialRampToValueAtTime(1e-4, hold + .2);
+    o.connect(lp).connect(g).connect(wet); o.start(t); o.stop(hold + .25);
+  }
+
+  /* ---------- düzenleme ---------- */
+  function level() { if (!started) return 0; if (S.ended) return 4; return [0, 1, 2, 2, 3][S.phase]; }
+  function play(i, t) {
+    const L = level(), b = i % 8, bar = i >> 3, e = 60 / tempo / 2;
+    // davul usulü: düm · tek · düm düm tek ·
+    if (L === 0) { if (b === 0 || b === 4) davul(t, 1, .8); if (b === 6) davul(t, 0, .6); }
+    else { if (b === 0 || b === 4 || b === 5) davul(t, 1, 1); if (b === 2 || b === 6) davul(t, 0, .9); }
+    if (b === 0 && (L > 0 || bar % 2 === 0)) kos(t, L ? 1 : .7);
+    if (L >= 3 && b === 4) kos(t, .8);
+    if (L >= 1) { nakkare(t, b % 2 === 0, b % 2 ? .6 : 1); if (L >= 2 && b === 7) nakkare(t + e / 2, true, .7); }
+    if (L >= 1 && b === 0 && bar % 2 === 0) zil(t, 1);
+    if (L >= 3 && b === 4) zil(t, .6);
+    // zurnalar (mevzide yalnız ilk sekiz ölçü, hafif)
+    const n = SONG[i];
+    if (n && (L > 0 || bar < 8)) {
+      const zv = L ? .075 : .045, dur = n.len * e - .02;
+      let tt = t;
+      if (n.len >= 2 && Math.random() < .35) { zurna(t, upper(n.f), .07, zv * .8, 0); tt = t + .07; }   // süsleme
+      const d = dur - (tt - t);
+      zurna(tt, n.f, d, zv, -6); zurna(tt, n.f, d, zv, 7);
+      if (L >= 2) zurna(tt, n.f / 2, d, zv * .55, 0);
+    }
+    if (L >= 2 && b === 0) boru(t, bar % 2 ? hz('A4') : hz('D5'), e * 3, .09);
+    if (L >= 3 && b === 4 && bar % 4 === 3) { boru(t, hz('D5'), e * .9, .09); boru(t + e, hz('F#5'), e * .9, .09); boru(t + 2 * e, hz('A5'), e * 2, .1); }
+    drone.gain.setTargetAtTime(L === 0 ? .05 : L === 4 ? .035 : .025, t, .8);
+  }
+  function schedule() {
+    if (!ac || ac.state !== 'running') return;
+    if (next < ac.currentTime - .2) next = ac.currentTime + .05;          // sekme arka plandaydı
+    while (next < ac.currentTime + .15) {
+      if (step % 8 === 0) tempo += (TEMPO[level()] - tempo) * .5;
+      play(step, next); next += 60 / tempo / 2; step = (step + 1) % SONG.length;
+    }
+  }
+  return {
+    start() { if (!ac) init(); if (enabled && !paused) ac.resume(); },
+    setPaused(p) { if (!ac) return; if (p || !enabled) ac.suspend(); else ac.resume(); },
+    toggle() {
+      enabled = !enabled;
+      if (ac) {
+        master.gain.setTargetAtTime(enabled ? .6 : 0, ac.currentTime, .05);
+        if (enabled && !paused) ac.resume(); else if (!enabled) setTimeout(() => { if (!enabled) ac.suspend(); }, 250);
+      }
+      return enabled;
+    },
+    restart() { step = 0; if (ac) next = ac.currentTime + .1; },
+  };
+})();
+
+/* ---------- döngü ---------- */
+newWorld(); makeLabels(); buildTimeline();
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (started && !paused) { let t = dt * speed; while (t > 1e-4) { const h = Math.min(t, 1 / 30); step(h); t -= h; } }
+  resize(); updCam(dt); render(now / 1000); updLabels(); updUI(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

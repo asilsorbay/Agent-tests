@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RTX 5090 Söküm Modeli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#E3E6EA; --surface:#F3F4F6; --raised:#FFFFFF; --ink:#14161A; --muted:#596070; --line:#CBD0D8;
+  --accent:#B25B2A; --accent-ink:#FFFFFF; --accent-soft:rgba(178,91,42,.12);
+  --stage-a:#F8F9FA; --stage-b:#C3C9D2; --grid:rgba(30,40,60,.055);
+  --glass:rgba(255,255,255,.86); --shadow:0 1px 2px rgba(20,22,26,.06),0 10px 28px rgba(20,22,26,.08);
+  --mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C0E11; --surface:#14171C; --raised:#1A1E24; --ink:#E6E8EC; --muted:#9097A3; --line:#272C34;
+    --accent:#E38B52; --accent-ink:#1A0E06; --accent-soft:rgba(227,139,82,.15);
+    --stage-a:#2B3038; --stage-b:#0A0B0E; --grid:rgba(200,215,235,.045);
+    --glass:rgba(20,23,28,.84); --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C0E11; --surface:#14171C; --raised:#1A1E24; --ink:#E6E8EC; --muted:#9097A3; --line:#272C34;
+  --accent:#E38B52; --accent-ink:#1A0E06; --accent-soft:rgba(227,139,82,.15);
+  --stage-a:#2B3038; --stage-b:#0A0B0E; --grid:rgba(200,215,235,.045);
+  --glass:rgba(20,23,28,.84); --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+*{box-sizing:border-box}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 384px;gap:16px;padding:16px}
+.stage{position:relative;min-height:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);
+  background:
+    repeating-linear-gradient(0deg,var(--grid) 0 1px,transparent 1px 24px),
+    repeating-linear-gradient(90deg,var(--grid) 0 1px,transparent 1px 24px),
+    radial-gradient(ellipse 80% 70% at 50% 42%,var(--stage-a),var(--stage-b));}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl.grabbing{cursor:grabbing}
+#gl.over{cursor:pointer}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;display:flex;align-items:center;gap:6px;pointer-events:auto;cursor:pointer;
+  font:600 11.5px/1.2 var(--sans);font-stretch:92%;padding:4px 9px 4px 7px;border-radius:999px;white-space:nowrap;
+  background:var(--glass);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:opacity .2s}
+.lbl::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+.lbl.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.lbl.on::before{background:var(--accent-ink)}
+.tip{position:absolute;left:0;top:0;pointer-events:none;font:600 12px/1.2 var(--sans);padding:6px 9px;border-radius:8px;
+  background:var(--ink);color:var(--raised);white-space:nowrap;box-shadow:var(--shadow)}
+
+.views{position:absolute;top:12px;left:12px;display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:10px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);max-width:calc(100% - 24px)}
+.views button{font:600 12px/1 var(--sans);padding:7px 10px;border-radius:7px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.views button:hover{color:var(--ink);background:var(--accent-soft)}
+.dims{position:absolute;top:14px;right:14px;text-align:right;font:500 11px/1.5 var(--mono);color:var(--muted);letter-spacing:.02em}
+.dims b{color:var(--ink);font-weight:600}
+.toolbar{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.slider{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0}
+.slider span{font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.slider input{flex:1;min-width:0;accent-color:var(--accent)}
+.slider output{font:600 12px/1 var(--mono);min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums}
+.toggles{display:flex;flex-wrap:wrap;gap:6px}
+.btn{font:600 12.5px/1 var(--sans);padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--raised);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--raised);border-color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;min-width:96px}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+
+.panel{min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:22px;padding-block:6px 20px;padding-inline:4px 6px}
+.eyebrow{font:600 11px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{margin:6px 0 8px;font-size:27px;line-height:1.08;font-weight:760;font-stretch:122%;letter-spacing:-.01em;text-wrap:balance}
+.lead{margin:0;color:var(--muted);max-width:60ch}
+h2{margin:0;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sel{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.sel h3{margin:4px 0 6px;font-size:21px;line-height:1.15;font-weight:720;font-stretch:112%;text-wrap:balance}
+.sel p{margin:0 0 12px;color:var(--ink);opacity:.86}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 14px;padding-top:12px;border-top:1px solid var(--line)}
+.facts dt{color:var(--muted);font-size:12.5px}
+.facts dd{margin:0;font:500 12.5px/1.45 var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.grp{margin:12px 0 4px;font:600 11px/1.3 var(--mono);color:var(--muted);letter-spacing:.04em}
+.grp:first-child{margin-top:0}
+.parts li{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:8px;padding:3px 6px;border-radius:8px}
+.parts li:hover{background:var(--accent-soft)}
+.parts li.on{background:var(--accent-soft)}
+.parts li.on .pname{color:var(--accent);font-weight:650}
+.parts input{margin:0;accent-color:var(--accent);width:15px;height:15px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid rgba(128,128,128,.35)}
+.pname{all:unset;cursor:pointer;padding:4px 0;font-size:13.5px}
+.pname:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.specs{display:grid;grid-template-columns:minmax(0,1fr) auto;margin:0}
+.specs dt,.specs dd{padding:7px 0;border-top:1px solid var(--line)}
+.specs dt{color:var(--muted)}
+.specs dd{margin:0;text-align:right;font:500 12.5px/1.5 var(--mono);font-variant-numeric:tabular-nums;padding-left:12px}
+.note{margin:0;color:var(--muted);font-size:12.5px;max-width:62ch}
+.src{margin:8px 0 0;padding-left:18px;font-size:12.5px;display:flex;flex-direction:column;gap:3px}
+.src a{color:var(--accent)}
+.foot{font:500 11px/1.4 var(--mono);color:var(--muted)}
+
+@media (max-width:900px){
+  html,body{height:auto}
+  .app{height:auto;grid-template-columns:1fr}
+  .stage{height:min(74vh,640px);min-height:440px}
+  .panel{overflow:visible;padding-inline:0}
+  .dims{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .lbl{transition:none} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="3B ekran kartı modeli">
+    <canvas id="gl"></canvas>
+    <div id="labels"></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="views" role="group" aria-label="Kamera açısı">
+      <button data-view="iso">İzometrik</button>
+      <button data-view="front">Ön</button>
+      <button data-view="back">Arka</button>
+      <button data-view="side">Yan · katmanlar</button>
+      <button data-view="top">Üst</button>
+    </div>
+    <div class="dims"><b>304 × 137 mm</b> · 2 slot<br>ölçek 1:1 mm · <span id="tris">–</span></div>
+    <div class="toolbar">
+      <button class="btn primary" id="btnExplode">Parçala</button>
+      <label class="slider" for="explode"><span>Ayrışma</span>
+        <input type="range" id="explode" min="0" max="100" value="0">
+        <output id="explodeOut" for="explode">0%</output>
+      </label>
+      <div class="toggles">
+        <button class="btn" id="tgFans" aria-pressed="false">Fanları çalıştır</button>
+        <button class="btn" id="tgSpin" aria-pressed="false">Otomatik döndür</button>
+        <button class="btn" id="tgXray" aria-pressed="false">Röntgen</button>
+        <button class="btn" id="tgLabels" aria-pressed="true">Etiketler</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <header>
+      <div class="eyebrow">GeForce RTX 5090 · Founders Edition</div>
+      <h1>Parçalanabilir kart modeli</h1>
+      <p class="lead">Kartı katman katman ayırın, bir parçaya tıklayıp ne işe yaradığını okuyun. Model, kütüphane kullanılmadan saf WebGL ile çiziliyor.</p>
+    </header>
+
+    <section class="sel" id="sel" aria-live="polite"></section>
+
+    <section>
+      <div class="sec-head"><h2>Parçalar</h2><button class="btn ghost" id="showAll">Tümünü göster</button></div>
+      <div id="partList"></div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Teknik özellikler</h2></div>
+      <dl class="specs">
+        <dt>GPU</dt><dd>GB202-300 · Blackwell</dd>
+        <dt>Üretim süreci</dt><dd>TSMC 4N</dd>
+        <dt>Transistör</dt><dd>92,2 milyar</dd>
+        <dt>Kalıp alanı</dt><dd>750 mm²</dd>
+        <dt>CUDA çekirdeği</dt><dd>21.760</dd>
+        <dt>SM / RT / Tensor</dt><dd>170 / 170 / 680</dd>
+        <dt>Boost saat</dt><dd>2,41 GHz</dd>
+        <dt>Bellek</dt><dd>32 GB GDDR7 · 512-bit</dd>
+        <dt>Bellek hızı</dt><dd>28 Gbps · 1.792 GB/s</dd>
+        <dt>Kart gücü</dt><dd>575 W</dd>
+        <dt>Güç girişi</dt><dd>1 × 12V-2×6</dd>
+        <dt>VRM</dt><dd>30 + 4 = 34 faz</dd>
+        <dt>Arayüz</dt><dd>PCIe 5.0 x16</dd>
+        <dt>Çıkışlar</dt><dd>3 × DP 2.1b · 1 × HDMI 2.1b</dd>
+        <dt>Boyut</dt><dd>304 × 137 mm · 2 slot</dd>
+        <dt>Çıkış tarihi</dt><dd>30 Oca 2025 · 1.999 $</dd>
+      </dl>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Kaynaklar</h2></div>
+      <p class="note">Dış ölçüler ve özellikler aşağıdaki kaynaklardan alındı. İç yerleşim (boru ve kanatçık sayısı, yonga konumları) söküm fotoğraflarına dayanan temsili bir yaklaşımdır.</p>
+      <ul class="src">
+        <li><a href="https://en.wikipedia.org/wiki/GeForce_RTX_50_series" target="_blank" rel="noopener">Wikipedia — GeForce RTX 50 series</a></li>
+        <li><a href="https://www.techpowerup.com/review/nvidia-geforce-rtx-5090-founders-edition/5.html" target="_blank" rel="noopener">TechPowerUp — 5090 FE söküm</a></li>
+        <li><a href="https://www.techpowerup.com/review/nvidia-geforce-rtx-5090-founders-edition/6.html" target="_blank" rel="noopener">TechPowerUp — devre kartı analizi</a></li>
+        <li><a href="https://www.tomshardware.com/pc-components/gpus/more-geforce-rtx-5090-founders-edition-mysteries-revealed-backside-of-the-pcb" target="_blank" rel="noopener">Tom's Hardware — PCB arka yüzü (34 faz)</a></li>
+        <li><a href="https://www.notebookcheck.net/Nvidia-RTX-5090-Founders-Edition-teardown-reveals-fragile-modular-design-that-repair-experts-call-a-disaster.1147864.0.html" target="_blank" rel="noopener">Notebookcheck — modüler tasarım, sıvı metal</a></li>
+        <li><a href="https://wccftech.com/nvidia-geforce-rtx-5090-pcb-leak-massive-gb202-blackwell-gpu-die-samsung-gddr7-memory/" target="_blank" rel="noopener">Wccftech — GB202 ve Samsung GDDR7</a></li>
+      </ul>
+    </section>
+    <div class="foot">Sürükle: döndür · Sağ tık / Shift + sürükle: kaydır · Tekerlek / iki parmak: yakınlaştır · Boşluk: parçala / birleştir · Esc: seçimi kaldır</div>
+  </aside>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ============================ vektör / matris ============================ */
+const TAU = Math.PI * 2;
+const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const add = (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const scl = (a, s) => [a[0]*s, a[1]*s, a[2]*s];
+const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const dot = (a, b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; };
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+function rx(a){ const c=Math.cos(a), s=Math.sin(a); return [1,0,0, 0,c,-s, 0,s,c]; }
+function ry(a){ const c=Math.cos(a), s=Math.sin(a); return [c,0,s, 0,1,0, -s,0,c]; }
+function m3v(m, v){ return [m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]]; }
+function T(t, m){ return { t: t || [0,0,0], m: m || [1,0,0, 0,1,0, 0,0,1] }; }
+const I = T();
+const ap = (X, v) => add(m3v(X.m, v), X.t);
+
+function perspective(fovy, aspect, n, f){
+  const t = 1 / Math.tan(fovy / 2), nf = 1 / (n - f);
+  return new Float32Array([t/aspect,0,0,0, 0,t,0,0, 0,0,(f+n)*nf,-1, 0,0,2*f*n*nf,0]);
+}
+function lookAt(e, c, up){
+  const z = norm(sub(e, c)), x = norm(cross(up, z)), y = cross(z, x);
+  return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,e),-dot(y,e),-dot(z,e),1]);
+}
+function mul4(a, b){
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++){
+    let s = 0; for (let k = 0; k < 4; k++) s += a[k*4+r] * b[c*4+k]; o[c*4+r] = s;
+  }
+  return o;
+}
+function xform(m, p){
+  const x=p[0], y=p[1], z=p[2];
+  return [m[0]*x+m[4]*y+m[8]*z+m[12], m[1]*x+m[5]*y+m[9]*z+m[13], m[2]*x+m[6]*y+m[10]*z+m[14], m[3]*x+m[7]*y+m[11]*z+m[15]];
+}
+
+/* ============================ geometri üretici ============================ */
+class Geo {
+  constructor(){ this.p = []; this.n = []; this.c = []; }
+  v(p, n, c){ this.p.push(p[0],p[1],p[2]); this.n.push(n[0],n[1],n[2]); this.c.push(c[0],c[1],c[2],c[3]); }
+  tri(a, b, c, col, na, nb, nc){
+    if (!na){ const n = norm(cross(sub(b,a), sub(c,a))); na = nb = nc = n; }
+    this.v(a, na, col); this.v(b, nb, col); this.v(c, nc, col);
+  }
+  quad(a, b, c, d, col){ this.tri(a, b, c, col); this.tri(a, c, d, col); }
+  box(x0, y0, z0, x1, y1, z1, col, X = I){
+    const P = (x, y, z) => ap(X, [x, y, z]);
+    const a=P(x0,y0,z0), b=P(x1,y0,z0), c=P(x1,y1,z0), d=P(x0,y1,z0),
+          e=P(x0,y0,z1), f=P(x1,y0,z1), g=P(x1,y1,z1), h=P(x0,y1,z1);
+    this.quad(e,f,g,h,col); this.quad(b,a,d,c,col);
+    this.quad(f,b,c,g,col); this.quad(a,e,h,d,col);
+    this.quad(h,g,c,d,col); this.quad(a,b,f,e,col);
+  }
+  cyl(r, z0, z1, seg, col, X = I, caps = true){
+    const c0 = ap(X, [0,0,z0]), c1 = ap(X, [0,0,z1]);
+    for (let i = 0; i < seg; i++){
+      const a0 = i/seg*TAU, a1 = (i+1)/seg*TAU;
+      const u0 = [Math.cos(a0), Math.sin(a0), 0], u1 = [Math.cos(a1), Math.sin(a1), 0];
+      const p00 = ap(X, [r*u0[0], r*u0[1], z0]), p10 = ap(X, [r*u1[0], r*u1[1], z0]);
+      const p11 = ap(X, [r*u1[0], r*u1[1], z1]), p01 = ap(X, [r*u0[0], r*u0[1], z1]);
+      const n0 = m3v(X.m, u0), n1 = m3v(X.m, u1);
+      this.tri(p00, p10, p11, col, n0, n1, n1); this.tri(p00, p11, p01, col, n0, n1, n0);
+      if (caps){ this.tri(c1, p01, p11, col); this.tri(c0, p10, p00, col); }
+    }
+  }
+  ring(rIn, rOut, z0, z1, seg, col, X = I){
+    const P = (r, a, z) => ap(X, [r*Math.cos(a), r*Math.sin(a), z]);
+    for (let i = 0; i < seg; i++){
+      const a0 = i/seg*TAU, a1 = (i+1)/seg*TAU;
+      const n0 = m3v(X.m, [Math.cos(a0), Math.sin(a0), 0]), n1 = m3v(X.m, [Math.cos(a1), Math.sin(a1), 0]);
+      this.tri(P(rOut,a0,z0), P(rOut,a1,z0), P(rOut,a1,z1), col, n0, n1, n1);
+      this.tri(P(rOut,a0,z0), P(rOut,a1,z1), P(rOut,a0,z1), col, n0, n1, n0);
+      const m0 = scl(n0, -1), m1 = scl(n1, -1);
+      this.tri(P(rIn,a0,z0), P(rIn,a1,z1), P(rIn,a1,z0), col, m0, m1, m1);
+      this.tri(P(rIn,a0,z0), P(rIn,a0,z1), P(rIn,a1,z1), col, m0, m0, m1);
+      this.quad(P(rIn,a0,z1), P(rOut,a0,z1), P(rOut,a1,z1), P(rIn,a1,z1), col);
+      this.quad(P(rIn,a1,z0), P(rOut,a1,z0), P(rOut,a0,z0), P(rIn,a0,z0), col);
+    }
+  }
+  // kare levha, ortasında dairesel fan deliği
+  plateHole(cx, cy, s, r, z0, z1, seg, col){
+    const circ = a => [cx + r*Math.cos(a), cy + r*Math.sin(a)];
+    const sq = a => { const c = Math.cos(a), sn = Math.sin(a), k = (s/2) / Math.max(Math.abs(c), Math.abs(sn)); return [cx + k*c, cy + k*sn]; };
+    for (let i = 0; i < seg; i++){
+      const a0 = i/seg*TAU, a1 = (i+1)/seg*TAU;
+      const p0 = circ(a0), p1 = circ(a1), q0 = sq(a0), q1 = sq(a1);
+      for (const z of [z0, z1]) this.quad([p0[0],p0[1],z], [q0[0],q0[1],z], [q1[0],q1[1],z], [p1[0],p1[1],z], col);
+      const n0 = [-Math.cos(a0), -Math.sin(a0), 0], n1 = [-Math.cos(a1), -Math.sin(a1), 0];
+      this.tri([p0[0],p0[1],z0], [p1[0],p1[1],z0], [p1[0],p1[1],z1], col, n0, n1, n1);
+      this.tri([p0[0],p0[1],z0], [p1[0],p1[1],z1], [p0[0],p0[1],z1], col, n0, n1, n0);
+    }
+  }
+  // esnek şerit kablo: nokta yolu boyunca düz bant
+  ribbon(pts, hw, col){
+    const side = i => {
+      const a = pts[Math.max(0, i-1)], b = pts[Math.min(pts.length-1, i+1)];
+      return scl(norm(cross(norm(sub(b, a)), [0,0,1])), hw);
+    };
+    for (let i = 0; i < pts.length - 1; i++){
+      const w0 = side(i), w1 = side(i+1);
+      this.quad(sub(pts[i], w0), add(pts[i], w0), add(pts[i+1], w1), sub(pts[i+1], w1), col);
+    }
+  }
+}
+
+/* ============================ malzemeler ============================ */
+// rgb + malzeme (0 = mat plastik … 1 = metal, 2 = ışık yayan)
+const C = (hex, m = 0) => { const n = parseInt(hex.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255, m]; };
+const M = {
+  gun: C('#3d4046', .72), gunDark: C('#25272b', .5), fan: C('#17181a', .12), hub: C('#5a5e65', .85),
+  alu: C('#c4c9d0', .85), copper: C('#c7784a', .92), pcb: C('#1b2622', .1), substrate: C('#2e5a3b', .18),
+  die: C('#aab0b8', 1), smd: C('#9b8a64', .3), mem: C('#1d1e21', .18), choke: C('#3e4045', .38),
+  stage: C('#2a2b2f', .25), gold: C('#d8ad45', 1), conn: C('#151515', .08), pin: C('#c29c4c', .95),
+  flex: C('#c98a2e', .22), steel: C('#9ba1a9', .9), port: C('#b9bdc3', .95), hole: C('#08080a', 0),
+  back: C('#2c2f34', .66), led: C('#f4f6f9', 2), lm: C('#e2e6eb', 1), gasket: C('#4b4b4f', .05)
+};
+
+/* ============================ parçalar ============================ */
+const GROUPS = ['Kasa ve soğutma', 'Silikon ve güç', 'Kartlar ve bağlantılar'];
+const FAN_L = [58, 68.5], FAN_R = [251, 68.5];
+
+function fanGeo(g, cx, cy){
+  g.cyl(17, 11, 16, 40, M.fan, T([cx, cy, 0]));
+  g.cyl(11.5, 16, 16.5, 40, M.hub, T([cx, cy, 0]));
+  g.ring(45.4, 47, 11, 16, 72, M.fan, T([cx, cy, 0]));
+  const nb = 9, nr = 7, nu = 4;
+  for (let b = 0; b < nb; b++){
+    const th = b / nb * TAU;
+    const pt = (i, j) => {
+      const rn = i / nr, r = 16.5 + 29.2 * rn, u = -1 + 2 * j / nu;
+      const a = th + u * 0.27 * (0.75 + 0.45 * rn) + 0.5 * rn;
+      return [cx + r*Math.cos(a), cy + r*Math.sin(a), 13.5 + u * 2.1 * (1 - 0.35 * rn)];
+    };
+    for (let i = 0; i < nr; i++) for (let j = 0; j < nu; j++)
+      g.quad(pt(i,j), pt(i+1,j), pt(i+1,j+1), pt(i,j+1), M.fan);
+  }
+}
+function finStack(g, x0, x1, y0, y1, z0, z1){
+  for (let x = x0; x + 0.45 <= x1; x += 2.3) g.box(x, y0, z0, x + 0.45, y1, z1, M.alu);
+}
+
+const PARTS = [
+  { id:'shroud', name:'Ön kasa', short:'Ön kasa', group:0, off:[0,0,110], order:0, outer:true, label:true, sw:M.gun,
+    desc:'Döküm alüminyum ön kapak ve çerçeve. İki fan yuvasını taşır; bu kadar güçlü bir karta rağmen kart yalnızca iki slot kalınlığındadır.',
+    facts:[['Boyut','304 × 137 mm'],['Kalınlık','2 slot'],['Malzeme','Döküm alüminyum']],
+    build: g => {
+      g.plateHole(FAN_L[0], FAN_L[1], 100, 48, 16, 19, 64, M.gun);
+      g.plateHole(FAN_R[0], FAN_R[1], 100, 48, 16, 19, 64, M.gun);
+      g.box(0,0,16, 8,137,19, M.gun); g.box(108,0,16, 201,137,19, M.gun); g.box(301,0,16, 304,137,19, M.gun);
+      g.box(8,0,16, 108,18.5,19, M.gun); g.box(8,118.5,16, 108,137,19, M.gun);
+      g.box(201,0,16, 301,18.5,19, M.gun); g.box(201,118.5,16, 301,137,19, M.gun);
+      g.box(114,10,19, 195,127,19.5, M.gunDark);
+      g.box(301,0,-18, 304,132,16, M.gun);
+      g.box(110,0,-18, 301,3,16, M.gun);
+    } },
+  { id:'frameTop', name:'Üst çerçeve ve ışık şeridi', short:'Üst çerçeve', group:0, off:[0,48,0], order:0, outer:true, label:true, sw:M.led,
+    desc:'Kartın üst kenarı. Aydınlatmalı logo şeridini taşır ve açılı 12V-2×6 güç konnektörü için bir girinti bırakır.',
+    facts:[['Aydınlatma','Beyaz LED şerit'],['Girinti','Güç konnektörü için']],
+    build: g => {
+      g.box(0,132,-18, 174,137,16, M.gun); g.box(200,132,-18, 304,137,16, M.gun);
+      g.box(174,135,-18, 200,137,-12, M.gun);
+      g.box(40,137,-2.5, 160,137.35,2.5, M.led);
+    } },
+  { id:'fanL', name:'Fan · G/Ç tarafı', short:'Fanlar', group:0, off:[0,0,80], order:1, outer:true, label:true, sw:M.fan, pivot:FAN_L,
+    desc:'Çift akış-geçişli (double flow-through) tasarımın birinci fanı. Altında PCB olmadığı için hava kanatçıklardan geçip doğrudan kartın arkasından çıkar.',
+    facts:[['Hava akışı','Önden arkaya, engelsiz'],['Dış halka','Kanatlara bağlı']],
+    build: g => fanGeo(g, FAN_L[0], FAN_L[1]) },
+  { id:'fanR', name:'Fan · uç taraf', short:'Fan', group:0, off:[0,0,80], order:1, outer:true, sw:M.fan, pivot:FAN_R,
+    desc:'İkinci fan. RTX 4090 FE’de yalnızca bir fan akış-geçişliydi; 5090 FE’de iki fan da havayı kartın içinden geçirir.',
+    facts:[['Hava akışı','Önden arkaya, engelsiz'],['Tasarım','Double flow-through']],
+    build: g => fanGeo(g, FAN_R[0], FAN_R[1]) },
+  { id:'finL', name:'Kanatçık bloğu · G/Ç tarafı', short:'Kanatçıklar', group:0, off:[0,0,52], order:2, outer:true, label:true, sw:M.alu,
+    desc:'Fanın hemen altındaki alüminyum kanat yığını. Isı boruları içinden geçer; hava, kanatların arasından kartın arkasına akar.',
+    facts:[['Malzeme','Alüminyum'],['Akış','Tam kalınlık boyunca']],
+    build: g => finStack(g, 16, 108, 16, 124, -17, 10.5) },
+  { id:'finC', name:'Orta kanatçık bloğu', short:'Orta kanatçık', group:0, off:[0,0,52], order:2, outer:true, sw:M.alu,
+    desc:'Buhar odasının üzerindeki kanatçıklar; GPU’nun hemen üstünde ek yüzey alanı sağlar.',
+    facts:[['Malzeme','Alüminyum'],['Konum','Buhar odası üstü']],
+    build: g => finStack(g, 112, 198, 22, 114, -6, 14) },
+  { id:'finR', name:'Kanatçık bloğu · uç taraf', short:'Kanatçık', group:0, off:[0,0,52], order:2, outer:true, sw:M.alu,
+    desc:'İkinci fanın altındaki kanat yığını. Ana PCB kartın ortasında toplandığı için bu bölgenin arkası tamamen açıktır.',
+    facts:[['Malzeme','Alüminyum'],['Akış','Tam kalınlık boyunca']],
+    build: g => finStack(g, 202, 300, 16, 124, -17, 10.5) },
+  { id:'pipes', name:'Isı boruları', short:'Isı boruları', group:0, off:[0,0,30], order:3, label:true, sw:M.copper,
+    desc:'Buhar odasından alınan ısıyı kartın iki ucundaki kanatçık bloklarına taşıyan bakır borular. Modeldeki boru sayısı temsilidir.',
+    facts:[['Malzeme','Bakır'],['Yol','Merkez → iki uç']],
+    build: g => { for (const y of [30, 49, 68.5, 88, 107]) g.cyl(3, 18, 298, 20, M.copper, T([0, y, -3], ry(Math.PI/2))); } },
+  { id:'vc', name:'3D buhar odası', short:'Buhar odası', group:0, off:[0,0,20], order:4, label:true, sw:M.copper,
+    desc:'GPU ve GDDR7 yongalarının üzerine oturan bakır buhar odası (vapor chamber). İçindeki sıvı buharlaşıp yoğuşarak ısıyı geniş bir alana ve ısı borularına yayar.',
+    facts:[['Malzeme','Bakır'],['Temas','GPU + 16 bellek yongası']],
+    build: g => {
+      g.box(112,20,-10.4, 198,117,-6, M.copper);
+      for (const [x, y] of [[118,26],[192,26],[118,111],[192,111]]) g.cyl(2.2, -6, -5.2, 16, M.steel, T([x, y, 0]));
+    } },
+  { id:'lm', name:'Sıvı metal ve conta', short:'Sıvı metal', group:0, off:[0,0,12], order:5, label:true, sw:M.lm,
+    desc:'GPU ile soğutucu arasında klasik macun yerine sıvı metal termal arayüz kullanılır. Kalıbın çevresindeki özel kauçuk conta, sıvı metalin PCB’ye sızmasını engeller.',
+    facts:[['Termal arayüz','Sıvı metal'],['Koruma','Kauçuk conta']],
+    build: g => {
+      g.box(140.5,55.5,-10.85, 169.5,81.5,-10.55, M.lm);
+      const zb = -11.4, zt = -10.45;
+      g.box(137,52,zb, 173,55,zt, M.gasket); g.box(137,82,zb, 173,85,zt, M.gasket);
+      g.box(137,55,zb, 140,82,zt, M.gasket); g.box(170,55,zb, 173,82,zt, M.gasket);
+    } },
+  { id:'backplate', name:'Arka plaka', short:'Arka plaka', group:0, off:[0,0,-64], order:0, outer:true, label:true, sw:M.back,
+    desc:'Ana PCB’nin arkasını kapatan metal plaka ve arka çerçeve. Kartın iki ucu açık bırakılır, böylece fanların ittiği hava arkadan çıkar.',
+    facts:[['Kapsama','Yalnızca orta bölüm'],['Uçlar','Hava çıkışı için açık']],
+    build: g => {
+      g.box(108,2,-20, 202,132,-18.5, M.back);
+      g.box(0,132,-20, 304,137,-18.5, M.back);
+      g.box(108,0,-20, 304,2,-18.5, M.back);
+      g.box(300,2,-20, 304,132,-18.5, M.back);
+      g.box(114,12,-20.5, 196,13.5,-20, M.gunDark); g.box(114,120.5,-20.5, 196,122,-20, M.gunDark);
+      g.box(136,56,-20.4, 174,81,-20, M.gunDark);
+    } },
+
+  { id:'die', name:'GB202 GPU', short:'GB202 GPU', group:1, off:[0,0,6], order:6, label:true, sw:M.die,
+    desc:'Blackwell mimarili GB202-300 çipi, alt tabaka (substrate) üzerinde. Tüketici kartlarına şimdiye dek konan en büyük NVIDIA GPU kalıplarından biri.',
+    facts:[['Kalıp alanı','750 mm²'],['Transistör','92,2 milyar'],['Üretim','TSMC 4N'],['SM','170'],['CUDA','21.760'],['Tensor (5. nesil)','680'],['RT (4. nesil)','170'],['Boost','2,41 GHz']],
+    build: g => {
+      g.box(129,42.5,-12.4, 181,94.5,-11.4, M.substrate);
+      g.box(140.5,55.5,-11.4, 169.5,81.5,-10.85, M.die);
+      for (let x = 132; x <= 177; x += 5){ g.box(x,44.2,-11.4, x+1.6,45,-11.05, M.smd); g.box(x,92,-11.4, x+1.6,92.8,-11.05, M.smd); }
+      for (let y = 48; y <= 88; y += 5){ g.box(131,y,-11.4, 131.8,y+1.6,-11.05, M.smd); g.box(178.2,y,-11.4, 179,y+1.6,-11.05, M.smd); }
+    } },
+  { id:'mem', name:'GDDR7 bellek', short:'GDDR7 ×16', group:1, off:[0,0,4], order:6, label:true, sw:M.mem,
+    desc:'GPU’yu dört yandan çevreleyen 16 adet Samsung GDDR7 yongası. Her biri 2 GB; birlikte 512-bit genişliğinde bir veri yolu oluştururlar.',
+    facts:[['Kapasite','32 GB'],['Yonga','16 × Samsung'],['Parça no','K4VAF3257C-SC28'],['Veri yolu','512-bit'],['Hız','28 Gbps'],['Bant genişliği','1.792 GB/s']],
+    build: g => {
+      const z0 = -12.4, z1 = -11.2;
+      for (const y of [34, 52.5, 70.5, 89]){ g.box(113,y,z0, 125,y+14,z1, M.mem); g.box(185,y,z0, 197,y+14,z1, M.mem); }
+      for (const x of [130, 144, 158, 172]){ g.box(x,99,z0, x+12,113,z1, M.mem); g.box(x,24,z0, x+12,38,z1, M.mem); }
+    } },
+  { id:'vrm', name:'Güç katı (VRM)', short:'VRM · 34 faz', group:1, off:[0,0,3], order:6, label:true, sw:M.choke,
+    desc:'GPU ve belleğe temiz, kararlı güç sağlayan voltaj düzenleyici. Ön yüzde 30 faz bobin sırası, arka yüzde 4 ek faz bulunur.',
+    facts:[['Ön yüz','30 faz'],['Arka yüz','4 faz'],['Toplam','34 faz'],['Kart gücü','575 W']],
+    build: g => {
+      for (let i = 0; i < 15; i++){
+        const x = 118 + i * 5.4;
+        g.box(x,118,-12.4, x+5,126,-6.8, M.choke); g.box(x,11,-12.4, x+5,19,-6.8, M.choke);
+        g.box(x+0.5,114.6,-12.4, x+4.5,117,-11.7, M.stage); g.box(x+0.5,20,-12.4, x+4.5,22.4,-11.7, M.stage);
+      }
+      for (const x of [140, 147, 154, 161]) g.box(x,120,-16, x+5,126,-14, M.choke);
+    } },
+  { id:'pcb', name:'Ana PCB', short:'Ana PCB', group:1, off:[0,0,-6], order:6, label:true, sw:M.pcb,
+    desc:'Üç parçalı kart mimarisinin merkezi. GPU, bellek ve güç katı kartın ortasındaki bu kompakt karta toplanır; iki uç hava akışına açık kalır.',
+    facts:[['Mimari','3 ayrı PCB'],['Bağlantı','Esnek şerit kablolar']],
+    build: g => g.box(110,4,-14, 200,131.5,-12.4, M.pcb) },
+  { id:'power', name:'12V-2×6 güç girişi', short:'12V-2×6', group:1, off:[0,32,-6], order:5, label:true, sw:M.conn,
+    desc:'Kartın tüm gücü tek bir 16 pinli 12V-2×6 konnektöründen gelir. Konnektör PCB üzerinde açılı durur ve üst çerçevedeki girintiye oturur.',
+    facts:[['Konnektör','1 × 12V-2×6'],['Güç','575 W'],['Pin','12 güç + 4 sinyal']],
+    build: g => {
+      const X = T([187, 127, -8.4], rx(-0.3));
+      g.box(-11,0,-4, 11,8,4, M.conn, X);
+      for (const z of [-1.6, 1.6]) for (let i = 0; i < 6; i++){
+        const x = -8.25 + i * 3.3; g.box(x-0.6,8,z-0.6, x+0.6,8.12,z+0.6, M.pin, X);
+      }
+      g.box(-3,2,4, 3,6,5.2, M.conn, X);
+    } },
+
+  { id:'pcie', name:'PCIe 5.0 x16 kartı', short:'PCIe kartı', group:2, off:[0,-44,-6], order:3, label:true, sw:M.gold,
+    desc:'PCIe kenar konnektörü ayrı küçük bir kartta durur ve ana PCB’ye esnek kabloyla bağlanır. Böylece birinci fanın altı tamamen boş kalır.',
+    facts:[['Arayüz','PCIe 5.0 x16'],['Bağlantı','Esnek kablo']],
+    build: g => {
+      g.box(18,0,-14, 108,14,-12.4, M.pcb);
+      g.box(22,-11,-14, 33,0,-12.4, M.pcb); g.box(35,-11,-14, 104,0,-12.4, M.pcb);
+      for (let x = 22.5; x < 103.5; x += 1){
+        if (x > 32.4 && x < 35) continue;
+        g.box(x,-10.5,-14.06, x+0.6,-1.5,-14, M.gold); g.box(x,-10.5,-12.4, x+0.6,-1.5,-12.34, M.gold);
+      }
+      g.box(98,5,-12.4, 106,11,-10.6, M.conn);
+      g.box(40,4,-12.4, 48,10,-11.8, M.mem);
+    } },
+  { id:'flexP', name:'PCIe esnek kablosu', short:'Esnek kablo', group:2, off:[0,-24,-6], order:3, sw:M.flex,
+    desc:'PCIe kartını ana PCB’ye bağlayan esnek şerit kablo. Söküm yapanların en çok dikkat etmesi gereken hassas parçalardan biri.',
+    facts:[['Tür','Esnek şerit (flex)'],['Bağlar','PCIe kartı ↔ ana PCB']],
+    build: g => {
+      g.ribbon([[100,8,-10.5],[104,8,-8.6],[110,8,-8.6],[115,8,-11.1]], 2.5, M.flex);
+      g.box(112,5,-12.4, 118,11,-11.2, M.conn);
+    } },
+  { id:'io', name:'Görüntü çıkış kartı', short:'G/Ç kartı', group:2, off:[-40,0,-6], order:2, label:true, sw:M.port,
+    desc:'Görüntü çıkışları da ayrı bir küçük kartta. Üç DisplayPort 2.1b ve bir HDMI 2.1b bağlantı noktası taşır.',
+    facts:[['DisplayPort','3 × 2.1b'],['HDMI','1 × 2.1b'],['Bağlantı','Esnek kablo']],
+    build: g => {
+      g.box(2,18,-14, 14,122,-12.4, M.pcb);
+      for (const y of [30, 50, 70]){ g.box(-2.6,y-8,-12.2, 12,y+8,-6.6, M.port); g.box(-2.75,y-7.2,-11.6, 6,y+7.2,-7.2, M.hole); }
+      g.box(-2.6,84,-12.2, 12,98,-7.7, M.port); g.box(-2.75,84.7,-11.6, 6,97.3,-8.3, M.hole);
+      g.box(4,103,-12.4, 12,111,-11.6, M.mem);
+    } },
+  { id:'flexI', name:'G/Ç esnek kablosu', short:'G/Ç kablosu', group:2, off:[-22,0,-6], order:2, sw:M.flex,
+    desc:'Görüntü çıkış kartını ana PCB’ye bağlayan uzun esnek kablo; kanatçık bloğunun üst kenarı boyunca ilerler.',
+    facts:[['Tür','Esnek şerit (flex)'],['Bağlar','G/Ç kartı ↔ ana PCB']],
+    build: g => {
+      g.ribbon([[8,112,-12.1],[8,122,-11.7],[9.5,126,-11.6],[14,127.5,-11.6],[104,127.5,-11.6],[110,127.5,-10.2],[115,127.5,-11.1]], 1.8, M.flex);
+      g.box(5,110,-12.4, 11,114,-11.6, M.conn); g.box(112,125,-12.4, 117.5,130,-11.2, M.conn);
+    } },
+  { id:'bracket', name:'G/Ç braketi', short:'Braket', group:2, off:[-78,0,0], order:1, outer:true, label:true, sw:M.steel,
+    desc:'Kartı kasaya vidalayan çelik braket. Port açıklıkları ve hava çıkış yarıkları bulunur.',
+    facts:[['Genişlik','2 slot'],['Malzeme','Çelik']],
+    build: g => {
+      const x0 = -2, x1 = -1, c = M.steel;
+      g.box(x0,2,-20, x1,128,-12.8, c);
+      let y = 2;
+      for (const [a, b] of [[21.4,38.6],[41.4,58.6],[61.4,78.6],[83.4,98.6]]){ g.box(x0,y,-12.8, x1,a,-6, c); y = b; }
+      g.box(x0,y,-12.8, x1,128,-6, c);
+      g.box(x0,2,-6, x1,128,-3, c);
+      g.box(x0,2,-3, x1,10,17, c);
+      for (let s = 10; s < 118; s += 7) g.box(x0,s+4,-3, x1,s+7,17, c);
+      g.box(x0,122,-3, x1,128,17, c);
+      g.box(x0,2,17, x1,128,20, c);
+      g.box(-12,128,-20, x1,129,20, c);
+      g.box(x0,-9,-17, x1,2,-13, c);
+    } }
+];
+const MAX_ORDER = 6;
+
+/* ============================ WebGL ============================ */
+const canvas = document.getElementById('gl');
+const stage = document.getElementById('stage');
+const gl = canvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: true });
+if (!gl){
+  const d = document.createElement('div'); d.className = 'nogl';
+  d.textContent = 'Bu tarayıcıda WebGL kullanılamıyor. 3B model için WebGL destekli bir tarayıcı gerekir.';
+  stage.appendChild(d); return;
+}
+
+const VS = `
+attribute vec3 aP; attribute vec3 aN; attribute vec4 aC;
+uniform mat4 uVP; uniform vec3 uOff; uniform float uSpin; uniform vec2 uPivot;
+varying vec3 vN; varying vec3 vW; varying vec4 vC;
+void main(){
+  vec3 p = aP; vec3 n = aN;
+  if (uSpin != 0.0){
+    float c = cos(uSpin), s = sin(uSpin); vec2 d = p.xy - uPivot;
+    p.xy = uPivot + vec2(c*d.x - s*d.y, s*d.x + c*d.y);
+    n.xy = vec2(c*n.x - s*n.y, s*n.x + c*n.y);
+  }
+  vec3 w = p + uOff; vW = w; vN = n; vC = aC;
+  gl_Position = uVP * vec4(w, 1.0);
+}`;
+const FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying vec3 vN; varying vec3 vW; varying vec4 vC;
+uniform vec3 uEye; uniform float uHi; uniform float uAlpha; uniform vec3 uHiCol;
+void main(){
+  vec3 n = normalize(vN); vec3 v = normalize(uEye - vW);
+  if (dot(n, v) < 0.0) n = -n;
+  vec3 base = vC.rgb; float metal = clamp(vC.a, 0.0, 1.0);
+  vec3 L1 = normalize(vec3(0.35, 0.8, 0.55)); vec3 L2 = normalize(vec3(-0.6, 0.25, -0.7)); vec3 L3 = normalize(vec3(0.8, -0.2, 0.3));
+  float hemi = 0.5 + 0.5 * n.y;
+  vec3 amb = mix(vec3(0.16, 0.17, 0.2), vec3(0.42, 0.44, 0.48), hemi);
+  vec3 diff = base * (amb + max(dot(n, L1), 0.0) * vec3(1.0, 0.97, 0.92) * 0.85
+                          + max(dot(n, L2), 0.0) * vec3(0.55, 0.62, 0.78) * 0.45
+                          + max(dot(n, L3), 0.0) * vec3(0.9, 0.85, 0.8) * 0.2);
+  float sh = mix(22.0, 80.0, metal);
+  float sp = pow(max(dot(n, normalize(L1 + v)), 0.0), sh) * mix(0.22, 1.15, metal)
+           + pow(max(dot(n, normalize(L2 + v)), 0.0), sh * 0.7) * mix(0.08, 0.5, metal);
+  vec3 specCol = mix(vec3(1.0), base * 1.35 + 0.08, metal);
+  float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  vec3 col = diff * (1.0 - metal * 0.45) + specCol * sp + fres * 0.2 * mix(vec3(0.62, 0.68, 0.78), base, metal);
+  if (vC.a > 1.5) col = base * 1.05;
+  col = mix(col, uHiCol, uHi * 0.32) + uHiCol * uHi * fres * 0.7;
+  col = pow(col, vec3(0.92));
+  gl_FragColor = vec4(col * uAlpha, uAlpha);
+}`;
+const FS_PICK = `
+precision mediump float;
+uniform vec3 uId;
+void main(){ gl_FragColor = vec4(uId, 1.0); }`;
+
+function makeProgram(vs, fs){
+  const sh = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const a = {}, u = {};
+  for (const n of ['aP','aN','aC']) a[n] = gl.getAttribLocation(p, n);
+  for (const n of ['uVP','uOff','uSpin','uPivot','uEye','uHi','uAlpha','uHiCol','uId']) u[n] = gl.getUniformLocation(p, n);
+  return { p, a, u };
+}
+const prog = makeProgram(VS, FS);
+const pickProg = makeProgram(VS, FS_PICK);
+
+let triCount = 0;
+PARTS.forEach((part, idx) => {
+  const g = new Geo(); part.build(g);
+  const mk = arr => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW); return b; };
+  part.bufP = mk(g.p); part.bufN = mk(g.n); part.bufC = mk(g.c);
+  part.count = g.p.length / 3; triCount += part.count / 3;
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < g.p.length; i += 3) for (let k = 0; k < 3; k++){ mn[k] = Math.min(mn[k], g.p[i+k]); mx[k] = Math.max(mx[k], g.p[i+k]); }
+  part.anchor = scl(add(mn, mx), 0.5);
+  part.size = Math.max(mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]);
+  part.idx = idx; part.visible = true;
+});
+document.getElementById('tris').textContent = Math.round(triCount).toLocaleString('tr-TR') + ' üçgen';
+
+gl.enable(gl.DEPTH_TEST);
+gl.clearColor(0, 0, 0, 0);
+
+/* ---- seçim (picking) için ekran dışı çerçeve ---- */
+let pickFbo = null, pickTex = null, pickRb = null, pickW = 1, pickH = 1;
+function setupPick(w, h){
+  if (pickFbo){ gl.deleteFramebuffer(pickFbo); gl.deleteTexture(pickTex); gl.deleteRenderbuffer(pickRb); }
+  pickW = w; pickH = h;
+  pickTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, pickTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  pickRb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, pickRb);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+  pickFbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, pickFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pickTex, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, pickRb);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+/* ============================ durum ============================ */
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S = { t: 0, tTarget: 0, fans: false, spin: false, xray: false, labels: true, fanAngle: 0, sel: -1, hover: -1 };
+const HOME = { yaw: 0.62, pitch: 0.36, dist: 620, tx: 152, ty: 62, tz: 0 };
+const cam = { ...HOME };
+let camGoal = null, dirty = true, cssW = 1, cssH = 1, VP = null, viewM = null, eye = [0,0,0];
+const HI_COL = [0.96, 0.58, 0.3];
+const AUTO_Z = 24; // ayrışınca sahne merkezinin +z kayması
+
+const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+function offsetOf(p){
+  const start = p.order / MAX_ORDER * 0.55;
+  const k = ease((S.t - start) / 0.45);
+  return scl(p.off, k);
+}
+
+/* ============================ çizim ============================ */
+function resize(){
+  const r = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (canvas.width !== w || canvas.height !== h){
+    canvas.width = w; canvas.height = h; cssW = r.width; cssH = r.height;
+    setupPick(Math.max(1, Math.round(cssW)), Math.max(1, Math.round(cssH)));
+    dirty = true;
+  }
+}
+
+function updateCamera(){
+  const tz = cam.tz + AUTO_Z * S.t;
+  const tgt = [cam.tx, cam.ty, tz];
+  const cp = Math.cos(cam.pitch);
+  eye = [tgt[0] + cam.dist * Math.sin(cam.yaw) * cp, tgt[1] + cam.dist * Math.sin(cam.pitch), tgt[2] + cam.dist * Math.cos(cam.yaw) * cp];
+  const P = perspective(35 * Math.PI / 180, cssW / cssH, 4, 6000);
+  viewM = lookAt(eye, tgt, [0, 1, 0]);
+  VP = mul4(P, viewM);
+}
+
+function bindPart(pr, p){
+  gl.bindBuffer(gl.ARRAY_BUFFER, p.bufP); gl.enableVertexAttribArray(pr.a.aP); gl.vertexAttribPointer(pr.a.aP, 3, gl.FLOAT, false, 0, 0);
+  if (pr.a.aN >= 0){ gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.enableVertexAttribArray(pr.a.aN); gl.vertexAttribPointer(pr.a.aN, 3, gl.FLOAT, false, 0, 0); }
+  if (pr.a.aC >= 0){ gl.bindBuffer(gl.ARRAY_BUFFER, p.bufC); gl.enableVertexAttribArray(pr.a.aC); gl.vertexAttribPointer(pr.a.aC, 4, gl.FLOAT, false, 0, 0); }
+  gl.uniform3fv(pr.u.uOff, p._off);
+  gl.uniform1f(pr.u.uSpin, p.pivot && S.fanAngle ? S.fanAngle : 0);
+  gl.uniform2fv(pr.u.uPivot, p.pivot || [0, 0]);
+}
+
+function alphaOf(p){
+  if (!S.xray) return 1;
+  if (S.sel >= 0) return p.idx === S.sel ? 1 : 0.12;
+  return p.outer ? 0.16 : 1;
+}
+
+function draw(){
+  updateCamera();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(prog.p);
+  gl.uniformMatrix4fv(prog.u.uVP, false, VP);
+  gl.uniform3fv(prog.u.uEye, eye);
+  gl.uniform3fv(prog.u.uHiCol, HI_COL);
+
+  const opaque = [], trans = [];
+  for (const p of PARTS){
+    if (!p.visible) continue;
+    p._off = offsetOf(p); p._alpha = alphaOf(p);
+    (p._alpha < 1 ? trans : opaque).push(p);
+  }
+  const hiOf = p => p.idx === S.sel ? 0.62 : p.idx === S.hover ? 0.3 : 0;
+
+  gl.disable(gl.BLEND); gl.depthMask(true);
+  for (const p of opaque){
+    bindPart(prog, p);
+    gl.uniform1f(prog.u.uAlpha, 1); gl.uniform1f(prog.u.uHi, hiOf(p));
+    gl.drawArrays(gl.TRIANGLES, 0, p.count);
+  }
+  if (trans.length){
+    const dist = p => { const c = add(p.anchor, p._off); return dot(sub(c, eye), sub(c, eye)); };
+    trans.sort((a, b) => dist(b) - dist(a));
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    for (const p of trans){
+      bindPart(prog, p);
+      gl.uniform1f(prog.u.uAlpha, p._alpha); gl.uniform1f(prog.u.uHi, hiOf(p) * 0.6);
+      gl.drawArrays(gl.TRIANGLES, 0, p.count);
+    }
+    gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+  updateLabels();
+}
+
+function pickAt(x, y){
+  if (!VP) updateCamera();
+  const run = includeTrans => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pickFbo);
+    gl.viewport(0, 0, pickW, pickH);
+    gl.disable(gl.BLEND);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(pickProg.p);
+    gl.uniformMatrix4fv(pickProg.u.uVP, false, VP);
+    for (const p of PARTS){
+      if (!p.visible) continue;
+      if (!includeTrans && alphaOf(p) < 1) continue;
+      p._off = offsetOf(p);
+      bindPart(pickProg, p);
+      gl.uniform3f(pickProg.u.uId, (p.idx + 1) / 255, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, p.count);
+    }
+    const px = new Uint8Array(4);
+    gl.readPixels(clamp(Math.floor(x), 0, pickW - 1), clamp(pickH - 1 - Math.floor(y), 0, pickH - 1), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return px[3] ? px[0] - 1 : -1;
+  };
+  let id = run(false);
+  if (id < 0 && S.xray) id = run(true);
+  return id;
+}
+
+/* ============================ etiketler ============================ */
+const labelsEl = document.getElementById('labels');
+for (const p of PARTS){
+  if (!p.label) continue;
+  const b = document.createElement('button');
+  b.className = 'lbl'; b.type = 'button'; b.textContent = p.short; b.tabIndex = -1;
+  b.addEventListener('click', () => select(p.idx));
+  labelsEl.appendChild(b); p.labelEl = b;
+}
+function updateLabels(){
+  const fade = clamp((S.t - 0.28) / 0.2, 0, 1);
+  for (const p of PARTS){
+    if (!p.labelEl) continue;
+    const show = S.labels && p.visible && (fade > 0 || p.idx === S.sel);
+    if (!show){ p.labelEl.style.display = 'none'; continue; }
+    const c = xform(VP, add(p.anchor, p._off || offsetOf(p)));
+    if (c[3] <= 0){ p.labelEl.style.display = 'none'; continue; }
+    const x = (c[0] / c[3] * 0.5 + 0.5) * cssW, y = (1 - (c[1] / c[3] * 0.5 + 0.5)) * cssH;
+    p.labelEl.style.display = 'flex';
+    p.labelEl.style.transform = `translate(${x - 4}px, ${y}px) translateY(-50%)`;
+    p.labelEl.style.opacity = p.idx === S.sel ? 1 : fade;
+    p.labelEl.classList.toggle('on', p.idx === S.sel);
+  }
+}
+
+/* ============================ panel ============================ */
+const selEl = document.getElementById('sel');
+const listEl = document.getElementById('partList');
+const cssColor = c => `rgb(${Math.round(c[0]*255)},${Math.round(c[1]*255)},${Math.round(c[2]*255)})`;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+
+GROUPS.forEach((gname, gi) => {
+  const h = document.createElement('div'); h.className = 'grp'; h.textContent = gname; listEl.appendChild(h);
+  const ul = document.createElement('ul'); ul.className = 'parts';
+  for (const p of PARTS.filter(q => q.group === gi)){
+    const li = document.createElement('li');
+    li.innerHTML = `<input type="checkbox" id="vis-${p.id}" checked aria-label="${esc(p.name)} görünür"><span class="sw" style="background:${cssColor(p.sw)}"></span><button class="pname" type="button">${esc(p.name)}</button>`;
+    li.querySelector('input').addEventListener('change', e => { p.visible = e.target.checked; if (!p.visible && S.sel === p.idx) select(-1); dirty = true; });
+    li.querySelector('.pname').addEventListener('click', () => select(p.idx === S.sel ? -1 : p.idx));
+    ul.appendChild(li); p.li = li;
+  }
+  listEl.appendChild(ul);
+});
+
+function renderSel(){
+  for (const p of PARTS) p.li.classList.toggle('on', p.idx === S.sel);
+  if (S.sel < 0){
+    selEl.innerHTML = `<div class="eyebrow">Seçili parça yok</div><h3>Bir parçaya tıklayın</h3>
+      <p>Modelde, etiketlerde ya da aşağıdaki listede bir parçayı seçin. Ayrışma kaydırıcısıyla kartı istediğiniz ölçüde açabilirsiniz.</p>
+      <dl class="facts"><dt>Parça</dt><dd>${PARTS.length}</dd><dt>PCB</dt><dd>3 ayrı kart</dd><dt>Soğutma</dt><dd>Çift akış-geçişli</dd></dl>`;
+    return;
+  }
+  const p = PARTS[S.sel];
+  selEl.innerHTML = `<div class="eyebrow">${esc(GROUPS[p.group])}</div><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p>
+    <dl class="facts">${p.facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    <div class="actions">
+      <button class="btn" type="button" data-act="focus">Yakınlaş</button>
+      <button class="btn" type="button" data-act="solo">Yalnız bunu göster</button>
+      <button class="btn" type="button" data-act="hide">Gizle</button>
+      <button class="btn ghost" type="button" data-act="clear">Seçimi kaldır</button>
+    </div>`;
+  selEl.querySelector('[data-act="focus"]').onclick = () => focusPart(p);
+  selEl.querySelector('[data-act="solo"]').onclick = () => { for (const q of PARTS) setVisible(q, q === p); focusPart(p); };
+  selEl.querySelector('[data-act="hide"]').onclick = () => { setVisible(p, false); select(-1); };
+  selEl.querySelector('[data-act="clear"]').onclick = () => select(-1);
+}
+function setVisible(p, v){ p.visible = v; document.getElementById('vis-' + p.id).checked = v; dirty = true; }
+function select(i){ S.sel = i; renderSel(); dirty = true; }
+document.getElementById('showAll').onclick = () => { for (const p of PARTS) setVisible(p, true); };
+
+function focusPart(p){
+  const o = offsetOf(p), c = add(p.anchor, o);
+  camGoal = { ...cam, tx: c[0], ty: c[1], tz: c[2] - AUTO_Z * S.t, dist: clamp(p.size * 2.4, 150, 700) };
+}
+
+/* ============================ kontroller ============================ */
+const slider = document.getElementById('explode'), out = document.getElementById('explodeOut');
+const btnExplode = document.getElementById('btnExplode');
+function syncUi(){
+  slider.value = Math.round(S.t * 100); out.textContent = Math.round(S.t * 100) + '%';
+  btnExplode.textContent = S.tTarget > 0.5 ? 'Birleştir' : 'Parçala';
+}
+slider.addEventListener('input', () => { S.t = S.tTarget = slider.value / 100; syncUi(); dirty = true; });
+btnExplode.addEventListener('click', toggleExplode);
+function toggleExplode(){ S.tTarget = S.tTarget > 0.5 ? 0 : 1; if (reduceMotion) S.t = S.tTarget; syncUi(); dirty = true; }
+
+function toggle(id, key){
+  const b = document.getElementById(id);
+  b.addEventListener('click', () => { S[key] = !S[key]; b.setAttribute('aria-pressed', S[key]); dirty = true; });
+}
+toggle('tgFans', 'fans'); toggle('tgSpin', 'spin'); toggle('tgXray', 'xray'); toggle('tgLabels', 'labels');
+
+const VIEWS = {
+  iso: { yaw: 0.62, pitch: 0.36 }, front: { yaw: 0, pitch: 0.04 }, back: { yaw: Math.PI, pitch: 0.04 },
+  side: { yaw: Math.PI / 2, pitch: 0.12 }, top: { yaw: 0, pitch: 1.42 }
+};
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+  const v = VIEWS[b.dataset.view];
+  let yaw = v.yaw;
+  const d = ((yaw - cam.yaw) % TAU + TAU * 1.5) % TAU - Math.PI; yaw = cam.yaw + d;
+  camGoal = { yaw, pitch: v.pitch, dist: b.dataset.view === 'iso' ? HOME.dist : 560, tx: HOME.tx, ty: HOME.ty, tz: HOME.tz };
+}));
+
+/* ---- işaretçi: döndür, kaydır, yakınlaştır, seç ---- */
+const pointers = new Map();
+let drag = null, pinch = null, hoverReq = null;
+const tip = document.getElementById('tip');
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  camGoal = null;
+  if (pointers.size === 1){
+    drag = { x: e.clientX, y: e.clientY, moved: 0, pan: e.button === 2 || e.shiftKey };
+    canvas.classList.add('grabbing');
+  } else if (pointers.size === 2){
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+    if (drag) drag.moved = 99;
+  }
+  tip.hidden = true;
+});
+function panBy(dx, dy){
+  const wpp = 2 * cam.dist * Math.tan(35 * Math.PI / 360) / cssH;
+  const right = [viewM[0], viewM[4], viewM[8]], up = [viewM[1], viewM[5], viewM[9]];
+  const m = add(scl(right, -dx * wpp), scl(up, dy * wpp));
+  cam.tx += m[0]; cam.ty += m[1]; cam.tz += m[2];
+}
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)){ hoverReq = { x: e.offsetX, y: e.offsetY }; return; }
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2 && pinch){
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    cam.dist = clamp(cam.dist * pinch.d / Math.max(d, 1), 110, 1600);
+    panBy(mx - pinch.mx, my - pinch.my);
+    pinch = { d, mx, my }; dirty = true; return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  drag.moved += Math.abs(dx) + Math.abs(dy);
+  if (drag.pan) panBy(dx, dy);
+  else { cam.yaw -= dx * 0.008; cam.pitch = clamp(cam.pitch + dy * 0.008, -1.5, 1.5); }
+  dirty = true;
+});
+function endPointer(e){
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0){
+    if (drag && drag.moved < 6 && e.type === 'pointerup'){
+      const id = pickAt(e.offsetX, e.offsetY);
+      select(id >= 0 && id === S.sel ? -1 : id);
+    }
+    drag = null; canvas.classList.remove('grabbing');
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', () => { if (!pointers.size){ S.hover = -1; tip.hidden = true; canvas.classList.remove('over'); dirty = true; } });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault(); camGoal = null;
+  cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0012), 110, 1600); dirty = true;
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, button, a')) { if (e.key !== 'Escape') return; }
+  if (e.key === ' '){ e.preventDefault(); toggleExplode(); }
+  else if (e.key === 'Escape') select(-1);
+});
+
+/* ============================ döngü ============================ */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  resize();
+  let anim = false;
+  if (S.t !== S.tTarget){
+    S.t += (S.tTarget - S.t) * (1 - Math.exp(-dt * 3));
+    if (Math.abs(S.tTarget - S.t) < 0.002) S.t = S.tTarget;
+    syncUi(); anim = true;
+  }
+  if (camGoal){
+    const k = 1 - Math.exp(-dt * 5); let done = true;
+    for (const key of ['yaw','pitch','dist','tx','ty','tz']){
+      cam[key] += (camGoal[key] - cam[key]) * k;
+      if (Math.abs(camGoal[key] - cam[key]) > (key === 'yaw' || key === 'pitch' ? 0.001 : 0.2)) done = false;
+    }
+    if (done) camGoal = null;
+    anim = true;
+  }
+  if (S.spin && !drag){ cam.yaw -= dt * 0.25; anim = true; }
+  if (S.fans){ S.fanAngle = (S.fanAngle + dt * 11) % TAU; anim = true; }
+  if (hoverReq && !drag){
+    const id = pickAt(hoverReq.x, hoverReq.y);
+    if (id !== S.hover){ S.hover = id; dirty = true; }
+    canvas.classList.toggle('over', id >= 0);
+    if (id >= 0){
+      tip.textContent = PARTS[id].name; tip.hidden = false;
+      const tx = Math.min(hoverReq.x + 14, cssW - tip.offsetWidth - 8);
+      tip.style.transform = `translate(${Math.max(8, tx)}px, ${hoverReq.y + 16}px)`;
+    } else tip.hidden = true;
+    hoverReq = null;
+  }
+  if (anim || dirty){ draw(); dirty = false; }
+  requestAnimationFrame(frame);
+}
+
+renderSel();
+select(PARTS.findIndex(p => p.id === 'die'));
+syncUi();
+resize(); draw();
+// açılışta kartı kısmen ayır
+if (reduceMotion){ S.t = S.tTarget = 0.62; syncUi(); dirty = true; }
+else setTimeout(() => { S.tTarget = 0.62; syncUi(); }, 450);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

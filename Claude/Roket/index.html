@@ -1,0 +1,1947 @@
+<meta charset="utf-8">
+<title>Hilal Görevi</title>
+<meta name="description" content="Dünya'dan kalkıp Ay'a inen roketin gerçek fizikle hesaplanan 3B simülasyonu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500&family=Saira+Semi+Condensed:wght@400;500;600;700&family=Saira+Stencil+One&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --space: #05070b;
+    --ink: #ece8de;
+    --ink-2: #b9b6ad;
+    --ink-3: #85847e;
+    --line: rgba(236, 232, 222, 0.13);
+    --glass: rgba(8, 11, 16, 0.58);
+    --glass-2: rgba(8, 11, 16, 0.78);
+    --burn: #ff9a3c;
+    --coast: #86c2ee;
+    --ok: #86dca8;
+    --fail: #ff6f61;
+    --plan: #d7c27a;
+    --ui: "Saira Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+    --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --stencil: "Saira Stencil One", "Saira Semi Condensed", Impact, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--space); color: var(--ink);
+    font-family: var(--ui); font-size: 14px; overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #scene.drag { cursor: grabbing; }
+  .hud { position: fixed; inset: 0; pointer-events: none;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .hud > * { pointer-events: auto; }
+  .panel { background: var(--glass); border: 1px solid var(--line); border-radius: 4px;
+    backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .lbl { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+
+  /* --- sol üst: görev kimliği ve saat --- */
+  .brand { position: absolute; left: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); pointer-events: none; }
+  .wordmark { font-family: var(--stencil); font-size: 34px; line-height: 0.9; letter-spacing: 0.06em;
+    color: var(--ink); text-shadow: 0 1px 12px rgba(0,0,0,.6); display: flex; align-items: center; gap: 10px; }
+  .wordmark svg { width: 26px; height: 26px; }
+  .sub { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-2); margin-top: 4px; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+  .clock { margin-top: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .clock .met { font-family: var(--mono); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; text-shadow: 0 1px 12px rgba(0,0,0,.7); }
+  .phase-chip { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 5px 10px 5px 8px;
+    border-radius: 3px; background: var(--glass-2); border: 1px solid var(--line); font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
+  .phase-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--coast); box-shadow: 0 0 10px var(--coast); }
+  .phase-chip[data-state="burn"] i { background: var(--burn); box-shadow: 0 0 12px var(--burn); animation: pulse .5s infinite alternate; }
+  .phase-chip[data-state="ok"] i { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+  .phase-chip[data-state="fail"] i { background: var(--fail); box-shadow: 0 0 10px var(--fail); }
+  .phase-chip[data-state="hold"] i { background: var(--plan); box-shadow: none; }
+  @keyframes pulse { to { opacity: .45; } }
+  .next { margin-top: 8px; font-size: 12.5px; color: var(--ink-2); text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+  .next b { color: var(--ink); font-weight: 600; }
+  .next .num { font-size: 12px; }
+
+  /* --- sağ: telemetri --- */
+  .telemetry { position: absolute; right: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); width: 272px;
+    padding: 12px 14px 12px; max-height: calc(100% - 200px); overflow: auto; }
+  .tgroup + .tgroup { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .tgroup .lbl { margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 8px; padding: 2px 0; }
+  .row span:first-child { color: var(--ink-2); font-size: 13px; }
+  .row .num { font-size: 12.5px; color: var(--ink); }
+  .row .num small { color: var(--ink-3); font-size: 10.5px; margin-left: 3px; }
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .big div .num { font-size: 19px; display: block; margin-top: 1px; }
+  .big div .num small { font-size: 11px; color: var(--ink-3); margin-left: 2px; }
+  .stages { display: grid; gap: 5px; margin-top: 4px; }
+  .stage { display: grid; grid-template-columns: 70px 1fr 44px; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .stage .bar { height: 6px; background: rgba(236,232,222,.08); border-radius: 1px; overflow: hidden; }
+  .stage .bar b { display: block; height: 100%; background: var(--ink-2); width: 100%; transition: width .2s linear; }
+  .stage.active { color: var(--ink); }
+  .stage.active .bar b { background: var(--burn); }
+  .stage.gone { opacity: .35; }
+  .stage .num { font-size: 10.5px; text-align: right; }
+  .thr { height: 4px; background: rgba(236,232,222,.08); margin-top: 6px; border-radius: 1px; overflow: hidden; }
+  .thr b { display: block; height: 100%; width: 0; background: var(--burn); }
+
+  /* --- sol alt: olay günlüğü --- */
+  .log { position: absolute; left: 16px; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100% - 32px));
+    padding: 10px 12px; max-height: 190px; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
+  .log .lbl { margin-bottom: 4px; }
+  .ev { display: grid; grid-template-columns: 116px 1fr; gap: 8px; font-size: 12.5px; color: var(--ink-2); line-height: 1.35; }
+  .ev .num { font-size: 10.5px; color: var(--ink-3); padding-top: 2px; }
+  .ev.major, .ev.land { color: var(--ink); }
+  .ev.burn span:last-child { color: var(--burn); }
+  .ev.plan span:last-child { color: var(--plan); }
+  .ev.land span:last-child { color: var(--ok); font-weight: 600; }
+  .ev.fail span:last-child { color: var(--fail); font-weight: 600; }
+
+  /* --- alt: zaman çizelgesi ve kontroller --- */
+  .dock { position: absolute; left: 16px; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    display: flex; gap: 12px; align-items: stretch; pointer-events: none; }
+  .dock > * { pointer-events: auto; }
+  .timeline { flex: 1; min-width: 0; padding: 10px 14px 12px; }
+  .steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px; }
+  .stp { position: relative; padding-top: 10px; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stp::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: rgba(236,232,222,.12); border-radius: 1px; }
+  .stp.done { color: var(--ink-2); }
+  .stp.done::before { background: var(--ink-2); }
+  .stp.now { color: var(--ink); font-weight: 600; }
+  .stp.now::before { background: linear-gradient(90deg, var(--burn) var(--p, 50%), rgba(236,232,222,.12) var(--p, 50%)); }
+  .controls { padding: 10px 12px; display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .ctl-group { display: flex; flex-direction: column; gap: 6px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .seg button, .btn { font: 600 12.5px var(--ui); letter-spacing: 0.03em; color: var(--ink-2); background: transparent;
+    border: 0; padding: 7px 10px; cursor: pointer; min-width: 34px; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button:hover, .btn:hover { color: var(--ink); background: rgba(236,232,222,.06); }
+  .seg button[aria-pressed="true"] { color: #10131a; background: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--coast); outline-offset: 1px; }
+  .warp-val { min-width: 64px; text-align: center; font-family: var(--mono); font-size: 12px; color: var(--ink); display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+
+  /* --- etiketler --- */
+  .tag { position: absolute; left: 0; top: 0; pointer-events: none; font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink); white-space: nowrap; text-shadow: 0 1px 6px #000; display: flex; align-items: center; gap: 6px; will-change: transform; }
+  .tag::before { content: ""; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
+  .tag.veh { color: var(--burn); }
+  .tag[hidden] { display: none !important; }
+
+  /* --- brifing ve sonuç kartı --- */
+  .card { position: absolute; left: 16px; top: 50%; transform: translateY(-46%); width: min(460px, calc(100% - 32px));
+    padding: 24px 26px 22px; background: rgba(7, 10, 15, 0.8); max-height: calc(100% - 40px); overflow: auto; }
+  .card h1 { font-family: var(--stencil); font-weight: 400; font-size: 40px; letter-spacing: 0.05em; margin: 0; line-height: 1; }
+  .card h1 + p { margin-top: 10px; }
+  .card p { font-size: 15px; line-height: 1.55; color: var(--ink-2); margin: 0 0 14px; max-width: 62ch; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; margin: 16px 0 20px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .facts div .num { display: block; font-size: 15px; margin-top: 3px; color: var(--ink); }
+  .cta { font: 700 15px var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: #140c04; background: var(--burn);
+    border: 0; border-radius: 3px; padding: 12px 20px; cursor: pointer; }
+  .cta:hover { filter: brightness(1.08); }
+  .cta.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .hint { font-size: 12.5px; color: var(--ink-3); margin-top: 14px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .card.result h1 { font-size: 34px; }
+  .card.result .lbl.ok { color: var(--ok); }
+  .toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-family: var(--ui); font-weight: 600;
+    font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; text-shadow: 0 2px 18px rgba(0,0,0,.9); pointer-events: none;
+    opacity: 0; transition: opacity .5s; text-align: center; width: calc(100% - 32px); text-wrap: balance; }
+  .toast.show { opacity: 1; }
+  .toast small { display: block; font-size: 13px; letter-spacing: 0.16em; color: var(--ink-2); margin-top: 4px; font-weight: 500; }
+  .busy { position: absolute; left: 50%; top: 32%; transform: translateX(-50%); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--plan); }
+
+  .tel-toggle { display: none; }
+
+  @media (max-width: 860px) {
+    .log { display: none; }
+    .telemetry { width: 230px; }
+  }
+  @media (max-width: 640px) {
+    .wordmark { font-size: 26px; }
+    .clock .met { font-size: 20px; }
+    .telemetry { top: auto; bottom: calc(172px + env(safe-area-inset-bottom, 0px)); right: 16px; left: 16px; width: auto; max-height: 42%; }
+    .telemetry.collapsed .tgroup:not(:first-child) { display: none; }
+    .tel-toggle { display: inline-block; pointer-events: auto; font: 600 11px var(--ui); letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-2); background: none; border: 0; padding: 0; cursor: pointer; }
+    .dock { flex-direction: column; }
+    .steps { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .stp { font-size: 10.5px; }
+    .controls { gap: 10px; }
+    .facts { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .phase-chip[data-state="burn"] i { animation: none; }
+    .toast { transition: none; }
+  }
+</style>
+
+<canvas id="scene" aria-label="Roketin Dünya'dan Ay'a yolculuğunun 3B görünümü"></canvas>
+
+<div class="hud" id="hud">
+  <div class="brand">
+    <div class="wordmark">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M20.5 3.5a13 13 0 1 0 8 21.7A11 11 0 0 1 20.5 3.5z" fill="currentColor"/></svg>
+      HİLAL
+    </div>
+    <div class="sub">Ay'a iniş görevi · Ayça iniş aracı</div>
+    <div class="clock"><span class="met" id="met">T− 00:00:12</span></div>
+    <div class="phase-chip" id="phaseChip" data-state="hold"><i></i><span id="phaseName">Geri sayım</span></div>
+    <div class="next" id="next"></div>
+  </div>
+
+  <aside class="telemetry panel" id="telemetry" aria-label="Telemetri">
+    <div class="tgroup">
+      <div class="lbl"><span>Uçuş · <span id="tBody">Dünya</span></span><button class="tel-toggle" id="telToggle" type="button">Tümü</button></div>
+      <div class="big">
+        <div><span class="lbl">İrtifa</span><span class="num" id="tAlt">0</span></div>
+        <div><span class="lbl" id="tVlbl">Hız</span><span class="num" id="tVel">0</span></div>
+      </div>
+      <div class="row"><span>Dikey hız</span><span class="num" id="tVz">0</span></div>
+      <div class="row"><span id="tV2lbl">Yörünge hızı</span><span class="num" id="tV2">0</span></div>
+      <div class="row"><span>İvme</span><span class="num" id="tAcc">0</span></div>
+      <div class="row" id="rowQ"><span>Dinamik basınç</span><span class="num" id="tQ">0</span></div>
+      <div class="thr" title="Motor gücü"><b id="tThr"></b></div>
+    </div>
+    <div class="tgroup">
+      <div class="lbl"><span>Yörünge</span><span id="tOrbBody">Dünya</span></div>
+      <div class="row"><span>Apoapsis</span><span class="num" id="tAp">—</span></div>
+      <div class="row"><span>Periapsis</span><span class="num" id="tPe">—</span></div>
+      <div class="row"><span>Periyot</span><span class="num" id="tPer">—</span></div>
+    </div>
+    <div class="tgroup">
+      <div class="lbl"><span>Araç</span><span id="tMass" class="num">0 t</span></div>
+      <div class="stages" id="stages"></div>
+      <div class="row" style="margin-top:6px"><span>Kalan Δv</span><span class="num" id="tDv">0</span></div>
+    </div>
+    <div class="tgroup">
+      <div class="lbl"><span>Mesafe</span></div>
+      <div class="row"><span>Dünya yüzeyine</span><span class="num" id="tDE">0</span></div>
+      <div class="row"><span>Ay yüzeyine</span><span class="num" id="tDM">0</span></div>
+    </div>
+  </aside>
+
+  <section class="log panel" id="log" aria-live="polite">
+    <div class="lbl">Uçuş günlüğü</div>
+  </section>
+
+  <div class="dock">
+    <section class="timeline panel" aria-label="Görev akışı">
+      <div class="lbl">Görev akışı</div>
+      <div class="steps" id="steps"></div>
+    </section>
+    <section class="controls panel" aria-label="Kontroller">
+      <div class="ctl-group">
+        <span class="lbl">Zaman</span>
+        <div class="seg">
+          <button type="button" id="bPause" title="Duraklat (Boşluk)">❚❚</button>
+          <button type="button" id="bSlow" title="Yavaşlat (,)">−</button>
+          <span class="warp-val" id="warpVal">×1</span>
+          <button type="button" id="bFast" title="Hızlandır (.)">+</button>
+          <button type="button" id="bAuto" aria-pressed="true" title="Otomatik zaman hızı">Oto</button>
+        </div>
+      </div>
+      <div class="ctl-group">
+        <span class="lbl">Kamera</span>
+        <div class="seg" id="camSeg">
+          <button type="button" data-cam="vehicle" aria-pressed="true">Araç</button>
+          <button type="button" data-cam="system">Sistem</button>
+          <button type="button" data-cam="earth">Dünya</button>
+          <button type="button" data-cam="moon">Ay</button>
+          <button type="button" id="bAutoCam" aria-pressed="true" title="Görev evresine göre kamera">Oto</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tags"></div>
+  <div class="toast" id="toast"></div>
+  <div class="busy" id="busy" hidden>Rota hesaplanıyor…</div>
+
+  <div class="card panel" id="brief">
+    <div class="lbl">Görev brifingi · Fırlatma rampası, şafak</div>
+    <h1>Hilal Görevi</h1>
+    <p>Üç kademeli Hilal roketi, Ayça iniş aracını Dünya'dan Ay yüzeyine taşıyor. Uçuşun her saniyesi fizikle hesaplanıyor: Dünya ve Ay'ın kütle çekimi, roket denklemi, atmosfer direnci ve irtifayla değişen motor itkisi. Otopilot yörüngeye çıkar, Ay'a transfer rotasını kendisi planlar ve yumuşak iniş yapar.</p>
+    <div class="facts">
+      <div><span class="lbl">Kalkış kütlesi</span><span class="num">1.008 t</span></div>
+      <div><span class="lbl">Kalkış itkisi</span><span class="num">13,8 MN</span></div>
+      <div><span class="lbl">Park yörüngesi</span><span class="num">200 km</span></div>
+      <div><span class="lbl">Ay yörüngesi</span><span class="num">110 km</span></div>
+      <div><span class="lbl">Yolculuk</span><span class="num">≈ 4 gün</span></div>
+      <div><span class="lbl">İzleme süresi</span><span class="num">≈ 7 dk</span></div>
+    </div>
+    <div class="actions">
+      <button class="cta" id="bStart" type="button">Geri sayımı başlat</button>
+    </div>
+    <div class="hint">Sürükleyerek kamerayı döndürün, tekerlek ya da iki parmakla yakınlaştırın. Boşluk: duraklat · , / . : zaman hızı · C: kamera</div>
+  </div>
+
+  <div class="card panel result" id="result" hidden>
+    <div class="lbl ok" id="resLbl">Temas</div>
+    <h1 id="resTitle">Ayça Ay'a indi</h1>
+    <div class="facts" id="resFacts"></div>
+    <div class="actions">
+      <button class="cta" id="bRestart" type="button">Yeniden fırlat</button>
+      <button class="cta ghost" id="bExplore" type="button">İniş alanını gez</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="core.js"></script>
+<script>
+(() => {
+'use strict';
+const C = window.Core;
+C.setMoon0(150 * Math.PI / 180);
+const $ = id => document.getElementById(id);
+
+// ============================================================================
+//  Temel sahne
+// ============================================================================
+const canvas = $('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 1e13);
+
+// fizik (x, y) → three (x, 0, -y); +Y dönme ekseni (kuzey)
+const SUN3 = new THREE.Vector3(C.SUN.x, C.SUN.z, -C.SUN.y).normalize();
+const Y = new THREE.Vector3(0, 1, 0);
+const origin = new THREE.Vector3();
+const v3 = (x, y) => new THREE.Vector3(x, 0, -y);
+
+function earthQuat(t, q) { return (q || new THREE.Quaternion()).setFromAxisAngle(Y, C.OMEGA_E * t); }
+function moonQuat(t, q) { return (q || new THREE.Quaternion()).setFromAxisAngle(Y, C.moonAngle(t) + Math.PI); }
+function moonCenter(t, out) { const m = C.moonState(t); return (out || new THREE.Vector3()).set(m.x, 0, -m.y); }
+
+// ============================================================================
+//  GLSL yardımcıları
+// ============================================================================
+const GLSL_HASH = `
+uint pcg(uint v){ uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+uint hsh(ivec3 c, uint S){ uvec3 u = uvec3(c + ivec3(16777216)); return pcg((u.x * 73856093u) ^ (u.y * 19349663u) ^ (u.z * 83492791u) ^ S); }
+float hf(ivec3 c, uint S){ return float(hsh(c, S) >> 8u) * (1.0 / 16777216.0); }
+float rnd(uint h){ return float(h >> 8u) * (1.0 / 16777216.0); }
+float vnoise(vec3 ci, vec3 f, uint salt){
+  uint S = pcg(salt + 1013u);
+  ivec3 c = ivec3(ci);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  float a = hf(c, S), b = hf(c + ivec3(1,0,0), S), c1 = hf(c + ivec3(0,1,0), S), d = hf(c + ivec3(1,1,0), S);
+  float e = hf(c + ivec3(0,0,1), S), f1 = hf(c + ivec3(1,0,1), S), g = hf(c + ivec3(0,1,1), S), h = hf(c + ivec3(1,1,1), S);
+  return mix(mix(mix(a, b, u.x), mix(c1, d, u.x), u.y), mix(mix(e, f1, u.x), mix(g, h, u.x), u.y), u.z);
+}
+float vn3(vec3 p, uint salt){ vec3 fl = floor(p); return vnoise(fl, p - fl, salt); }
+`;
+
+const PLANET_VS = `
+#include <common>
+#include <logdepthbuf_pars_vertex>
+attribute vec3 dir;
+uniform mat3 uL2B;
+varying vec3 vLocal; varying vec3 vDirB; varying vec3 vWPos; varying vec3 vWN;
+void main(){
+  vLocal = uL2B * position;
+  vDirB = uL2B * dir;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWPos = wp.xyz;
+  vWN = normalize(mat3(modelMatrix) * dir);
+  gl_Position = projectionMatrix * (modelViewMatrix * vec4(position, 1.0));
+  #include <logdepthbuf_vertex>
+}`;
+
+const EARTH_FS = `
+#include <logdepthbuf_pars_fragment>
+#define NOCT 22
+uniform vec3 uNi[NOCT]; uniform vec3 uNf[NOCT];
+uniform float uF0, uPix, uR, uCamAlt, uTime;
+uniform vec3 uSun; uniform mat3 uB2W;
+varying vec3 vLocal; varying vec3 vDirB; varying vec3 vWPos; varying vec3 vWN;
+${GLSL_HASH}
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 db = normalize(vDirB);
+  vec3 toC = cameraPosition - vWPos; float dist = length(toC); vec3 V = toC / dist;
+  vec3 N = normalize(vWN);
+  float fp = dist * uPix / uR / max(dot(N, V), 0.2);
+  float n = 0.0, amp = 0.55, det = 0.0, det2 = 0.0;
+  for (int k = 0; k < NOCT; k++) {
+    float freq = uF0 * exp2(float(k));
+    float w = smoothstep(0.8 * fp, 2.5 * fp, 1.0 / freq);
+    if (w <= 0.0) break;
+    vec3 P = uNf[k] + vLocal * freq; vec3 fl = floor(P);
+    float v = vnoise(uNi[k] + fl, P - fl, uint(k)) - 0.5;
+    n += amp * w * v;
+    if (k >= 8) det += w * v * 0.5;
+    if (k >= 15) det2 += w * v * 0.5;
+    amp *= (k < 6 ? 0.5 : 0.55);
+  }
+  // Fırlatma üssü: batısı kara, ~8 km doğusu okyanus
+  vec3 pad = vec3(1.0, 0.0, 0.0);
+  vec3 dp = db - pad; float padW = exp(-dot(dp, dp) / (0.035 * 0.035));
+  float sea = 0.11;
+  float coast = sea + 0.012 + (db.z + 0.00125) * 38.0 + 0.35 * det;
+  n = mix(n, coast, padW);
+  float e = n - sea;
+  float lat = abs(db.y);
+  vec3 col;
+  if (e > 0.0) {
+    float humid = 0.5 + det * 1.5 + 0.8 * (n - 0.1);
+    float arid = smoothstep(0.22, 0.36, lat) * (1.0 - smoothstep(0.48, 0.62, lat));
+    arid = clamp(arid * (1.2 - humid) * 1.6, 0.0, 1.0) * (1.0 - padW);
+    vec3 green = mix(vec3(0.04, 0.085, 0.03), vec3(0.11, 0.13, 0.055), clamp(0.5 + det * 2.5, 0.0, 1.0));
+    green = mix(green, vec3(0.2, 0.19, 0.12), clamp(det2 * 0.6 + 0.3, 0.0, 1.0) * 0.4);
+    vec3 desert = mix(vec3(0.52, 0.42, 0.28), vec3(0.62, 0.5, 0.36), clamp(0.5 + det * 3.0, 0.0, 1.0));
+    col = mix(green, desert, arid);
+    col = mix(col, vec3(0.3, 0.29, 0.25), smoothstep(0.62, 0.8, lat));
+    col = mix(col, vec3(0.27, 0.24, 0.21), smoothstep(0.16, 0.3, e));
+    col = mix(col, vec3(0.88, 0.9, 0.94), smoothstep(0.83, 0.9, lat + e * 0.4) + smoothstep(0.3, 0.36, e));
+    col = mix(vec3(0.62, 0.57, 0.44), col, smoothstep(0.0, 0.006, e + det2 * 0.004));
+  } else {
+    col = mix(vec3(0.012, 0.045, 0.11), vec3(0.03, 0.16, 0.22), smoothstep(-0.07, 0.0, e));
+    col = mix(col, vec3(0.8, 0.85, 0.9), smoothstep(0.9, 0.95, lat));
+  }
+  vec3 L = uSun;
+  float ndl = dot(N, L);
+  float diff = max(ndl, 0.0);
+  float twi = smoothstep(-0.12, 0.08, ndl);
+  vec3 lit = col * (diff * 1.7 + 0.012);
+  lit += col * vec3(0.9, 0.45, 0.25) * 0.08 * twi * (1.0 - smoothstep(0.0, 0.25, ndl));
+  if (e <= 0.0 && lat < 0.9) {
+    vec3 H = normalize(L + V);
+    lit += vec3(1.0, 0.92, 0.8) * pow(max(dot(N, H), 0.0), 140.0) * 1.1 * diff * smoothstep(0.0, -0.03, e);
+  }
+  // gece şehir ışıkları
+  if (e > 0.0 && e < 0.2) {
+    float cityN = vn3(db * 180.0, 7u) * vn3(db * 900.0, 9u);
+    float city = smoothstep(0.35, 0.6, cityN) * (1.0 - smoothstep(0.6, 0.8, lat));
+    lit += vec3(1.0, 0.72, 0.38) * city * 0.55 * (1.0 - twi);
+  }
+  // hava perspektifi (yakın görüş)
+  float dens = exp(-max(uCamAlt, 0.0) / 8000.0);
+  float fog = 1.0 - exp(-dist / 60000.0 * dens);
+  vec3 sky = vec3(0.36, 0.52, 0.8) * (0.15 + 0.85 * smoothstep(-0.1, 0.35, dot(N, L)));
+  lit = mix(lit, sky, fog * 0.85);
+  gl_FragColor = vec4(lit, 1.0);
+}`;
+
+const MOON_FS = `
+#include <logdepthbuf_pars_fragment>
+#define NOCT 21
+uniform vec3 uNi[NOCT]; uniform vec3 uNf[NOCT];
+uniform float uF0, uPix, uR;
+uniform vec3 uSun; uniform vec3 uEarthDir; uniform float uEarthshine; uniform mat3 uB2W;
+varying vec3 vLocal; varying vec3 vDirB; varying vec3 vWPos; varying vec3 vWN;
+${GLSL_HASH}
+float prof(float x){ float b = x < 1.0 ? (x * x - 1.0) : 0.0; float r = 0.28 * exp(-pow((x - 1.0) / 0.22, 2.0)); return b + r; }
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 db = normalize(vDirB);
+  vec3 toC = cameraPosition - vWPos; float dist = length(toC); vec3 V = toC / dist;
+  vec3 N0 = normalize(vWN);
+  float fp = dist * uPix / uR / max(dot(N0, V), 0.2);
+  // denizler (maria): düşük frekanslı fbm
+  float m = 0.0, amp = 0.5;
+  for (int k = 0; k < 6; k++) {
+    float freq = uF0 * exp2(float(k));
+    vec3 P = uNf[k] + vLocal * freq; vec3 fl = floor(P);
+    m += amp * (vnoise(uNi[k] + fl, P - fl, uint(k) + 40u) - 0.5);
+    amp *= 0.5;
+  }
+  float highland = smoothstep(-0.06, 0.05, m + 0.02);
+  vec3 slope = vec3(0.0); float albB = 0.0, grain = 0.0;
+  for (int k = 0; k < NOCT; k++) {
+    float freq = uF0 * exp2(float(k));
+    float cell = 1.0 / freq;
+    float w = smoothstep(1.2 * fp, 4.0 * fp, cell * 0.12);
+    if (w <= 0.0) break;
+    vec3 P = uNf[k] + vLocal * freq; vec3 fl = floor(P); vec3 f = P - fl;
+    ivec3 c = ivec3(uNi[k] + fl);
+    uint h = hsh(c, pcg(uint(k) * 977u + 11u));
+    float dens = k < 11 ? mix(0.18, 0.55, highland) : 0.6;
+    if (rnd(h) < dens) {
+      uint h1 = pcg(h), h2 = pcg(h1), h3 = pcg(h2), h4 = pcg(h3), h5 = pcg(h4);
+      vec3 cen = 0.3 + 0.4 * vec3(rnd(h1), rnd(h2), rnd(h3));
+      float rad = mix(0.07, 0.2, rnd(h4) * rnd(h4));
+      vec3 d = f - cen; float dl = length(d); float x = dl / rad;
+      if (x < 1.5) {
+        float age = rnd(h5);
+        float depth = mix(0.05, 0.24, age);
+        float e = 0.01;
+        float dh = (prof(x + e) - prof(max(x - e, 0.0))) / (x + e - max(x - e, 0.0));
+        slope += w * depth * dh * d / max(dl, 1e-6);
+        if (age > 0.9) albB += w * 0.5 * (1.0 - smoothstep(0.7, 1.5, x));
+        else albB -= w * 0.05 * (1.0 - smoothstep(0.6, 1.0, x));
+      }
+    }
+    if (k > 9) grain += w * (vnoise(uNi[k] + fl, f, uint(k) + 90u) - 0.5) * 0.18;
+  }
+  vec3 sT = slope - dot(slope, db) * db;
+  vec3 nb = normalize(db - sT);
+  vec3 N = normalize(uB2W * nb);
+  float alb = mix(0.34, 0.62, highland) * (1.0 + grain + albB) ;
+  vec3 base = vec3(0.98, 0.95, 0.9) * alb;
+  float mu0 = max(dot(N, uSun), 0.0), mu = max(dot(N, V), 0.05);
+  float ls = mu0 / (mu0 + mu);
+  float I = mix(mu0, 2.0 * ls, 0.55) * 0.95;
+  I *= smoothstep(-0.02, 0.03, dot(N0, uSun));
+  vec3 lit = base * I;
+  lit += base * vec3(0.55, 0.65, 0.9) * uEarthshine * max(dot(N, uEarthDir), 0.0);
+  gl_FragColor = vec4(lit, 1.0);
+}`;
+
+const CLOUD_FS = `
+#include <logdepthbuf_pars_fragment>
+uniform float uPix, uR, uTime; uniform vec3 uSun;
+varying vec3 vLocal; varying vec3 vDirB; varying vec3 vWPos; varying vec3 vWN;
+${GLSL_HASH}
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 db = normalize(vDirB);
+  vec3 toC = cameraPosition - vWPos; float dist = length(toC); vec3 V = toC / dist;
+  vec3 N = normalize(vWN);
+  float fp = dist * uPix / uR / max(abs(dot(N, V)), 0.15);
+  float lat = db.y;
+  vec3 q = db + vec3(uTime * 2e-6, 0.0, 0.0);
+  float warp = vn3(q * 3.0, 3u) - 0.5;
+  float n = 0.0, amp = 0.5;
+  for (int k = 0; k < 11; k++) {
+    float freq = 3.0 * exp2(float(k));
+    float w = smoothstep(0.8 * fp, 2.5 * fp, 1.0 / freq);
+    if (w <= 0.0) break;
+    n += amp * w * (vn3(q * freq + warp * 1.4, uint(k) + 20u) - 0.5);
+    amp *= 0.52;
+  }
+  float band = 0.08 * cos(lat * 9.0) + 0.05 * (1.0 - abs(lat) * 2.0);
+  float cov = n * 1.35 + band - 0.15;
+  vec3 dp = db - vec3(1.0, 0.0, 0.0);
+  float clear = exp(-dot(dp, dp) / (0.03 * 0.03));
+  float a = smoothstep(0.0, 0.28, cov) * (1.0 - clear) * 0.9;
+  float ndl = dot(N, uSun);
+  float lit = max(ndl, 0.0) * 1.25 + 0.02;
+  vec3 col = vec3(1.0, 0.98, 0.95) * lit;
+  col = mix(col, vec3(1.0, 0.55, 0.35) * 0.6, (1.0 - smoothstep(0.0, 0.2, ndl)) * smoothstep(-0.1, 0.0, ndl));
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(col, a);
+}`;
+
+const ATMO_FS = `
+#include <logdepthbuf_pars_fragment>
+uniform vec3 uCam; uniform vec3 uCenter; uniform vec3 uSun;
+uniform float uRp, uRa;
+varying vec3 vLocal; varying vec3 vDirB; varying vec3 vWPos; varying vec3 vWN;
+vec2 rs(vec3 o, vec3 d, float r){ float b = dot(o, d); float c = dot(o, o) - r * r; float h = b * b - c; if (h < 0.0) return vec2(1e9, -1e9); h = sqrt(h); return vec2(-b - h, -b + h); }
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 ro = uCam;
+  vec3 rd = normalize(vWPos - cameraPosition);
+  vec2 at = rs(ro, rd, uRa);
+  if (at.y < 0.0) discard;
+  float t0 = max(at.x, 0.0), t1 = at.y;
+  vec2 pl = rs(ro, rd, uRp);
+  bool hitP = pl.x > 0.0;
+  if (hitP) t1 = min(t1, pl.x);
+  const int NS = 12; const int NL = 6;
+  float ds = (t1 - t0) / float(NS);
+  vec3 bR = vec3(5.8e-3, 13.5e-3, 33.1e-3); float bM = 21e-3; float Hr = 8.0, Hm = 1.2;
+  vec3 sR = vec3(0.0), sM = vec3(0.0); float oR = 0.0, oM = 0.0;
+  for (int i = 0; i < NS; i++) {
+    vec3 p = ro + rd * (t0 + ds * (float(i) + 0.5));
+    float h = length(p) - uRp;
+    float dR = exp(-h / Hr) * ds, dM = exp(-h / Hm) * ds;
+    oR += dR; oM += dM;
+    vec2 ls = rs(p, uSun, uRa);
+    float dl = ls.y / float(NL); float lR = 0.0, lM = 0.0; bool bl = false;
+    for (int j = 0; j < NL; j++) {
+      vec3 q = p + uSun * (dl * (float(j) + 0.5));
+      float hq = length(q) - uRp;
+      if (hq < 0.0) { bl = true; break; }
+      lR += exp(-hq / Hr) * dl; lM += exp(-hq / Hm) * dl;
+    }
+    if (!bl) {
+      vec3 tau = bR * (oR + lR) + bM * 1.1 * (oM + lM);
+      vec3 att = exp(-tau);
+      sR += dR * att; sM += dM * att;
+    }
+  }
+  float mu = dot(rd, uSun);
+  float pR = 3.0 / (16.0 * 3.14159) * (1.0 + mu * mu);
+  float g = 0.76;
+  float pM = 3.0 / (8.0 * 3.14159) * ((1.0 - g * g) * (1.0 + mu * mu)) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+  vec3 col = (hitP ? 10.0 : 20.0) * (sR * bR * pR + sM * bM * pM);
+  col = 1.0 - exp(-col * 1.3);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ============================================================================
+//  Kameraya bakan küresel kabuk: kutup noktası kamera nadirinde → yakında hassas
+// ============================================================================
+function capGeometry(rings, segs, aMin) {
+  const pos = [], dir = [], idx = [];
+  pos.push(0, 0, 0); dir.push(0, 1, 0);
+  const alphas = [];
+  for (let i = 0; i < rings; i++) alphas.push(aMin * Math.pow(Math.PI / aMin, i / (rings - 1)));
+  for (const a of alphas) {
+    const sa = Math.sin(a), ca = Math.cos(a), dy = -2 * Math.sin(a / 2) ** 2;
+    for (let j = 0; j < segs; j++) {
+      const p = j / segs * Math.PI * 2, cp = Math.cos(p), sp = Math.sin(p);
+      pos.push(sa * cp, dy, sa * sp); dir.push(sa * cp, ca, sa * sp);
+    }
+  }
+  for (let j = 0; j < segs; j++) idx.push(0, 1 + (j + 1) % segs, 1 + j);
+  for (let i = 0; i < rings - 1; i++) {
+    const a0 = 1 + i * segs, b0 = 1 + (i + 1) * segs;
+    for (let j = 0; j < segs; j++) {
+      const j1 = (j + 1) % segs;
+      idx.push(a0 + j, a0 + j1, b0 + j, a0 + j1, b0 + j1, b0 + j);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('dir', new THREE.Float32BufferAttribute(dir, 3));
+  g.setIndex(idx);
+  return g;
+}
+const CAP = capGeometry(120, 160, 2e-9);
+const CAP_LO = capGeometry(60, 96, 1e-6);
+
+class Shell {
+  constructor(R, fs, uniforms, opts) {
+    opts = opts || {};
+    this.R = R;
+    this.nOct = opts.nOct || 0;
+    this.F0 = opts.F0 || 1;
+    this.Ni = new Float32Array(this.nOct * 3); this.Nf = new Float32Array(this.nOct * 3);
+    const u = Object.assign({
+      uL2B: { value: new THREE.Matrix3() }, uB2W: { value: new THREE.Matrix3() },
+      uSun: { value: SUN3 }, uPix: { value: 0.001 }, uR: { value: R }, uF0: { value: this.F0 },
+    }, uniforms || {});
+    if (this.nOct) { u.uNi = { value: this.Ni }; u.uNf = { value: this.Nf }; }
+    this.mat = new THREE.ShaderMaterial({ vertexShader: PLANET_VS, fragmentShader: fs, uniforms: u,
+      transparent: !!opts.transparent, depthWrite: opts.depthWrite !== false, blending: opts.blending || THREE.NormalBlending,
+      side: opts.side || THREE.FrontSide });
+    this.mesh = new THREE.Mesh(opts.lo ? CAP_LO : CAP, this.mat);
+    this.mesh.frustumCulled = false;
+    if (opts.renderOrder) this.mesh.renderOrder = opts.renderOrder;
+    scene.add(this.mesh);
+    this._q = new THREE.Quaternion(); this._qi = new THREE.Quaternion(); this._m4 = new THREE.Matrix4();
+    this._p = new THREE.Vector3(); this._nb = new THREE.Vector3();
+  }
+  update(center, bodyQ, camW) {
+    const pole = this._p.copy(camW).sub(center);
+    const dcam = pole.length();
+    pole.divideScalar(dcam);
+    this._q.setFromUnitVectors(Y, pole);
+    this.mesh.quaternion.copy(this._q);
+    this.mesh.scale.setScalar(this.R);
+    this.mesh.position.set(center.x + pole.x * this.R - origin.x, center.y + pole.y * this.R - origin.y, center.z + pole.z * this.R - origin.z);
+    this._qi.copy(bodyQ).invert();
+    const l2b = this._qi.clone().multiply(this._q);
+    this.mat.uniforms.uL2B.value.setFromMatrix4(this._m4.makeRotationFromQuaternion(l2b));
+    this.mat.uniforms.uB2W.value.setFromMatrix4(this._m4.makeRotationFromQuaternion(bodyQ));
+    if (this.nOct) {
+      const nb = this._nb.copy(pole).applyQuaternion(this._qi);
+      for (let k = 0; k < this.nOct; k++) {
+        const f = this.F0 * Math.pow(2, k);
+        const xs = [nb.x * f, nb.y * f, nb.z * f];
+        for (let c = 0; c < 3; c++) { const fl = Math.floor(xs[c]); this.Ni[k * 3 + c] = fl; this.Nf[k * 3 + c] = xs[c] - fl; }
+      }
+    }
+    return dcam;
+  }
+}
+
+const earth = new Shell(C.R_E, EARTH_FS, { uCamAlt: { value: 0 }, uTime: { value: 0 } }, { nOct: 22, F0: 1.5 });
+const clouds = new Shell(C.R_E + 7000, CLOUD_FS, { uTime: { value: 0 } }, { transparent: true, depthWrite: false, side: THREE.DoubleSide, lo: true, renderOrder: 2 });
+const atmo = new Shell(C.R_E + 100000, ATMO_FS, {
+  uCam: { value: new THREE.Vector3() }, uCenter: { value: new THREE.Vector3() }, uRp: { value: C.R_E / 1000 }, uRa: { value: C.R_E / 1000 + 100 },
+}, { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, lo: true, renderOrder: 3 });
+const moon = new Shell(C.R_M, MOON_FS, { uEarthDir: { value: new THREE.Vector3() }, uEarthshine: { value: 0.03 } }, { nOct: 21, F0: 3.0 });
+
+// ============================================================================
+//  Yıldızlar ve Güneş
+// ============================================================================
+const stars = (() => {
+  const n = 7000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n);
+  let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const gal = new THREE.Vector3(0.3, 0.8, 0.52).normalize();
+  const tmp = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    let x, y, z;
+    do { x = r() * 2 - 1; y = r() * 2 - 1; z = r() * 2 - 1; } while (x * x + y * y + z * z > 1 || x * x + y * y + z * z < 0.01);
+    tmp.set(x, y, z).normalize();
+    if (i < n * 0.45) { const d = tmp.dot(gal); tmp.addScaledVector(gal, -d * 0.85).normalize(); }
+    pos.set([tmp.x * 1e11, tmp.y * 1e11, tmp.z * 1e11], i * 3);
+    const m = Math.pow(r(), 5);
+    const t = r();
+    const c = t < 0.2 ? [1, 0.82, 0.66] : t < 0.35 ? [0.75, 0.84, 1] : [1, 0.97, 0.93];
+    const b = 0.25 + 0.75 * m;
+    col.set([c[0] * b, c[1] * b, c[2] * b], i * 3);
+    size[i] = 1.2 + 2.6 * m;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uOp: { value: 1 }, uDpr: { value: 1 } },
+    vertexShader: `#include <common>
+#include <logdepthbuf_pars_vertex>
+attribute float aSize; attribute vec3 color; varying vec3 vC; uniform float uDpr;
+void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uDpr;
+#include <logdepthbuf_vertex>
+}`,
+    fragmentShader: `#include <logdepthbuf_pars_fragment>
+varying vec3 vC; uniform float uOp;
+void main(){
+#include <logdepthbuf_fragment>
+float d = length(gl_PointCoord - 0.5) * 2.0; float a = (1.0 - smoothstep(0.2, 1.0, d)) * uOp; gl_FragColor = vec4(vC * a, 1.0); }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const p = new THREE.Points(g, mat); p.frustumCulled = false; p.renderOrder = -2;
+  scene.add(p);
+  return p;
+})();
+
+function glowTexture(stops) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'); const g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+  for (const [o, col] of stops) g.addColorStop(o, col);
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); return t;
+}
+const sunCore = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture([[0, 'rgba(255,255,250,1)'], [0.25, 'rgba(255,250,235,1)'], [0.32, 'rgba(255,230,190,0.5)'], [1, 'rgba(255,200,150,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture([[0, 'rgba(255,240,220,0.55)'], [0.2, 'rgba(255,220,180,0.18)'], [1, 'rgba(255,200,150,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+sunCore.frustumCulled = sunGlow.frustumCulled = false;
+scene.add(sunCore, sunGlow);
+
+// ============================================================================
+//  Işıklar
+// ============================================================================
+const sunLight = new THREE.DirectionalLight(0xfff3e2, 2.3);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+Object.assign(sunLight.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 1, far: 900 });
+sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.03;
+scene.add(sunLight, sunLight.target);
+const hemi = new THREE.HemisphereLight(0xa9c8ff, 0x40372c, 0.55);
+scene.add(hemi);
+const earthLight = new THREE.DirectionalLight(0x9fbaff, 0);
+scene.add(earthLight, earthLight.target);
+const engineLight = new THREE.PointLight(0xff9a50, 0, 400, 2);
+scene.add(engineLight);
+
+const shadowCatcher = new THREE.Mesh(new THREE.CircleGeometry(450, 64), new THREE.ShadowMaterial({ opacity: 0.6, depthWrite: false }));
+shadowCatcher.receiveShadow = true; shadowCatcher.renderOrder = 1;
+shadowCatcher.material.polygonOffset = true; shadowCatcher.material.polygonOffsetFactor = -2;
+scene.add(shadowCatcher);
+
+// ============================================================================
+//  Araç modelleri
+// ============================================================================
+const M = {
+  white: new THREE.MeshStandardMaterial({ color: 0xf1eee6, roughness: 0.5, metalness: 0.05 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x1d1f23, roughness: 0.6, metalness: 0.3 }),
+  carbon: new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.45, metalness: 0.2 }),
+  bell: new THREE.MeshStandardMaterial({ color: 0x3a3632, roughness: 0.35, metalness: 0.85, emissive: 0xff6a20, emissiveIntensity: 0, side: THREE.DoubleSide }),
+  niobium: new THREE.MeshStandardMaterial({ color: 0x5b4a6a, roughness: 0.3, metalness: 0.9, emissive: 0xff5a20, emissiveIntensity: 0, side: THREE.DoubleSide }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xd2a33a, roughness: 0.32, metalness: 1.0 }),
+  foil: new THREE.MeshStandardMaterial({ color: 0xc9c7c0, roughness: 0.28, metalness: 0.9 }),
+  panel: new THREE.MeshStandardMaterial({ color: 0x8d8f93, roughness: 0.55, metalness: 0.5 }),
+  window: new THREE.MeshStandardMaterial({ color: 0x0b0f16, roughness: 0.1, metalness: 0.6 }),
+  concrete: new THREE.MeshStandardMaterial({ color: 0x77736b, roughness: 0.95 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0x6d7076, roughness: 0.6, metalness: 0.6 }),
+  red: new THREE.MeshStandardMaterial({ color: 0xa3372b, roughness: 0.7 }),
+};
+
+function bodyTexture(label) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 2048;
+  const x = c.getContext('2d');
+  x.fillStyle = '#f1eee6'; x.fillRect(0, 0, 1024, 2048);
+  // yuvarlanma deseni (siyah çeyrekler)
+  x.fillStyle = '#16181c';
+  x.fillRect(0, 0, 256, 120); x.fillRect(512, 0, 256, 120);
+  x.fillRect(256, 1928, 256, 120); x.fillRect(768, 1928, 256, 120);
+  // ince bantlar
+  x.fillStyle = 'rgba(20,20,24,.55)'; x.fillRect(0, 300, 1024, 6); x.fillRect(0, 1700, 1024, 6);
+  x.save();
+  x.translate(128 + 256, 1024); x.rotate(-Math.PI / 2);
+  x.fillStyle = '#15171b';
+  x.font = '190px "Saira Stencil One", Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  if (label) x.fillText(label, 0, 0);
+  x.restore();
+  // hilal amblemi
+  x.save(); x.translate(128 + 256, 470);
+  x.fillStyle = '#b8322a'; x.beginPath(); x.arc(0, 0, 70, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#f1eee6'; x.beginPath(); x.arc(26, -8, 58, 0, Math.PI * 2); x.fill();
+  x.restore();
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8;
+  return t;
+}
+
+function cyl(rt, rb, h, y0, mat, segs, open) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, segs || 48, 1, !!open), mat);
+  m.position.y = y0 + h / 2; m.castShadow = true;
+  return m;
+}
+function bell(rThroat, rExit, h, y0, mat) {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(new THREE.Vector2(rThroat + (rExit - rThroat) * Math.pow(t, 0.62), y0 + h * (1 - t))); }
+  const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), mat); m.castShadow = true; return m;
+}
+
+// Plume (egzoz) malzemesi
+function plumeMaterial(core, outer, vis) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uThr: { value: 0 }, uP: { value: 1 }, uTime: { value: 0 }, uR0: { value: 1 }, uLen: { value: 30 }, uSpread: { value: 1.5 },
+      uCore: { value: new THREE.Color(core) }, uOuter: { value: new THREE.Color(outer) }, uVis: { value: vis } },
+    vertexShader: `#include <common>
+#include <logdepthbuf_pars_vertex>
+uniform float uR0, uLen, uSpread; varying float vT; varying vec3 vN; varying vec3 vV;
+void main(){
+  float t = -position.y;
+  float r = uR0 * (1.0 + (uSpread - 1.0) * pow(t, 0.65));
+  vec3 p = vec3(position.x * r, -t * uLen, position.z * r);
+  vT = t;
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  vN = normalize(normalMatrix * vec3(position.x, 0.0, position.z));
+  vV = normalize(-mv.xyz);
+  gl_Position = projectionMatrix * mv;
+  #include <logdepthbuf_vertex>
+}`,
+    fragmentShader: `#include <logdepthbuf_pars_fragment>
+uniform float uThr, uP, uTime, uLen, uR0, uVis; uniform vec3 uCore, uOuter;
+varying float vT; varying vec3 vN; varying vec3 vV;
+void main(){
+  #include <logdepthbuf_fragment>
+  float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.3);
+  float fall = pow(1.0 - vT, 1.8);
+  float dia = uP * exp(-vT * 3.0) * (0.55 + 0.45 * cos(vT * uLen / (uR0 * 1.9) * 6.2831));
+  float fl = 0.88 + 0.12 * sin(uTime * 53.0 + vT * 37.0) * sin(uTime * 31.0);
+  vec3 col = mix(uCore, uOuter, smoothstep(0.0, 0.45, vT));
+  float a = edge * fall * uThr * fl * uVis * (1.0 + dia * 1.5);
+  gl_FragColor = vec4(col * a, 1.0);
+}`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+}
+const PLUME_GEO = (() => { const g = new THREE.CylinderGeometry(1, 1, 1, 32, 24, true); g.translate(0, -0.5, 0); return g; })();
+function makePlume(r0, core, outer, vis, y) {
+  const m = new THREE.Mesh(PLUME_GEO, plumeMaterial(core, outer, vis));
+  m.position.y = y; m.frustumCulled = false; m.renderOrder = 5; m.visible = false;
+  m.userData.r0 = r0;
+  return m;
+}
+
+function buildLander() {
+  const g = new THREE.Group();
+  // iniş kademesi: sekizgen, altın folyo
+  const desc = cyl(2.05, 2.05, 1.7, 1.25, M.gold, 8); desc.rotation.y = Math.PI / 8; g.add(desc);
+  const deck = cyl(2.1, 2.1, 0.12, 2.95, M.foil, 8); deck.rotation.y = Math.PI / 8; g.add(deck);
+  // üst modül
+  const cab = cyl(1.35, 1.55, 1.9, 3.07, M.foil, 6); g.add(cab);
+  const top = cyl(0.7, 1.35, 0.45, 4.97, M.panel, 6); g.add(top);
+  for (let i = 0; i < 2; i++) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.08), M.window);
+    const a = -0.35 + i * 0.7; w.position.set(Math.sin(a) * 1.46, 4.35, Math.cos(a) * 1.46); w.rotation.y = a; w.rotation.x = -0.08; g.add(w);
+  }
+  // anten
+  const mast = cyl(0.04, 0.04, 1.1, 5.3, M.steel, 6); mast.position.x = -0.4; g.add(mast);
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 8, 0, Math.PI * 2, 0, 0.9), M.foil);
+  dish.position.set(-0.4, 6.55, 0); dish.rotation.z = 0.6; dish.castShadow = true; g.add(dish);
+  // RCS kümeleri
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2;
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), M.panel);
+    r.position.set(Math.cos(a) * 1.62, 4.1, Math.sin(a) * 1.62); r.castShadow = true; g.add(r);
+  }
+  // motor
+  const b = bell(0.28, 0.72, 1.05, 0.28, M.niobium); g.add(b);
+  // ayaklar
+  const legs = [];
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    const pivot = new THREE.Group();
+    pivot.position.set(Math.cos(a) * 1.9, 2.8, Math.sin(a) * 1.9);
+    pivot.rotation.y = -a;
+    const arm = new THREE.Group(); pivot.add(arm);
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.35, 8), M.gold);
+    strut.position.y = -1.675; strut.castShadow = true; arm.add(strut);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.34, 0.12, 20), M.foil);
+    pad.position.y = -3.35; pad.castShadow = true; arm.add(pad); arm.userData.pad = pad;
+    const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), M.steel);
+    brace.position.set(-0.45, -1.4, 0); brace.rotation.z = -0.45; arm.add(brace);
+    g.add(pivot); legs.push(arm);
+  }
+  g.userData.legs = legs;
+  g.userData.bells = [b];
+  const plume = makePlume(0.7, 0xfff0d8, 0xff9a5c, 0.55, 0.28); g.add(plume); g.userData.plume = plume;
+  return g;
+}
+function setLegs(lander, k) {
+  // k=0 kapalı, k=1 açık
+  const legs = lander.userData.legs;
+  for (const arm of legs) { arm.rotation.z = THREE.MathUtils.lerp(3.0, 0.614, k); arm.userData.pad.rotation.z = -arm.rotation.z; }
+}
+
+function buildRocket() {
+  const root = new THREE.Group();
+  const tex = bodyTexture('HİLAL');
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tex, roughness: 0.5, metalness: 0.05 });
+  // --- 1. kademe
+  const s1 = new THREE.Group(); const s1Bell = M.bell.clone();
+  for (let i = 0; i < 9; i++) {
+    const a = i / 8 * Math.PI * 2, r = i === 8 ? 0 : 2.3;
+    const b = bell(0.35, 0.72, 2.4, 0.2, s1Bell); b.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); s1.add(b);
+  }
+  s1.add(cyl(3.5, 3.5, 1.6, 2.6, M.dark));
+  const tank1 = cyl(3.5, 3.5, 39.8, 4.2, bodyMat, 64); tank1.rotation.y = Math.PI; s1.add(tank1);
+  s1.add(cyl(3.5, 3.5, 4.0, 44.0, M.carbon, 64));
+  for (let i = 0; i < 4; i++) { // kılavuz kanatçık ve bağlantılar
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.6, 1.8), M.dark);
+    const a = i * Math.PI / 2 + Math.PI / 4; f.position.set(Math.cos(a) * 3.6, 2.4, Math.sin(a) * 3.6); f.rotation.y = -a; f.castShadow = true; s1.add(f);
+  }
+  const p1 = makePlume(3.4, 0xfff4d6, 0xff7a2a, 1.0, 0.2); s1.add(p1);
+  s1.userData = { plume: p1, bells: s1.children.filter(c => c.material === s1Bell) };
+  // --- 2. kademe
+  const s2 = new THREE.Group();
+  const b2 = bell(0.45, 1.55, 3.4, 44.6, M.bell.clone()); s2.add(b2);
+  s2.add(cyl(3.5, 3.5, 20, 48, M.white, 64));
+  s2.add(cyl(3.5, 3.5, 0.3, 58, M.dark, 64));
+  s2.add(cyl(2.62, 3.5, 3.0, 68, M.carbon, 64));
+  const p2 = makePlume(1.5, 0xe8f0ff, 0x9fb8ff, 0.38, 44.6); s2.add(p2);
+  s2.userData = { plume: p2, bells: [b2] };
+  // --- 3. kademe
+  const s3 = new THREE.Group();
+  const b3 = bell(0.3, 1.05, 2.5, 68.6, M.bell.clone()); s3.add(b3);
+  s3.add(cyl(2.6, 2.6, 10, 71, M.white, 48));
+  s3.add(cyl(2.6, 2.6, 0.5, 76, M.dark, 48));
+  s3.add(cyl(2.4, 2.6, 0.5, 81, M.steel, 48));
+  const p3 = makePlume(1.0, 0xe8f0ff, 0x9fb8ff, 0.38, 68.6); s3.add(p3);
+  s3.userData = { plume: p3, bells: [b3] };
+  // --- iniş aracı
+  const lm = buildLander(); lm.position.y = C.LM_OFFSET; setLegs(lm, 0);
+  // --- burun konisi (iki yarım)
+  const prof = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24; const y = 81.5 + t * 15;
+    const r = t < 0.38 ? 2.75 : 2.75 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.38) / 0.62, 2)));
+    prof.push(new THREE.Vector2(Math.max(r, 0.001), y));
+  }
+  prof.reverse();
+  const fair = [];
+  for (let k = 0; k < 2; k++) {
+    const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 36, k * Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: 0xf1eee6, roughness: 0.5, side: THREE.DoubleSide }));
+    m.castShadow = true;
+    const g = new THREE.Group(); g.add(m); fair.push(g);
+  }
+  root.add(s1, s2, s3, lm, fair[0], fair[1]);
+  root.userData = { s1, s2, s3, lm, fair, stageGroups: [s1, s2, s3] };
+  return root;
+}
+
+// ============================================================================
+//  Fırlatma rampası (Dünya'ya sabit)
+// ============================================================================
+function buildPad() {
+  const g = new THREE.Group();
+  const apron = new THREE.Mesh(new THREE.CylinderGeometry(110, 116, 1.2, 64), new THREE.MeshStandardMaterial({ color: 0x5f5c56, roughness: 0.97 }));
+  apron.position.y = -0.55; apron.receiveShadow = true; g.add(apron);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(30, C.PAD_H, 30), M.concrete); deck.position.y = C.PAD_H / 2; deck.castShadow = deck.receiveShadow = true; g.add(deck);
+  const hole = new THREE.Mesh(new THREE.BoxGeometry(12, 0.4, 12), M.dark); hole.position.y = C.PAD_H - 0.25; g.add(hole);
+  const trench = new THREE.Mesh(new THREE.BoxGeometry(12, 7, 60), M.dark); trench.position.set(0, 3, 30); g.add(trench);
+  // hizmet kulesi
+  const tw = new THREE.Group(); tw.position.set(-17, C.PAD_H, 0);
+  for (const [x, z] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.8, 104, 0.8), M.red); c.position.set(x, 52, z); c.castShadow = true; tw.add(c); }
+  for (let i = 0; i < 26; i++) {
+    const h = 2 + i * 4;
+    const r1 = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.35, 0.35), M.red); r1.position.set(0, h, -3); tw.add(r1);
+    const r2 = r1.clone(); r2.position.z = 3; tw.add(r2);
+    const r3 = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 6.8), M.red); r3.position.set(-3, h, 0); tw.add(r3);
+    const r4 = r3.clone(); r4.position.x = 3; tw.add(r4);
+    const d = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.6, 0.25), M.red); d.position.set(0, h + 2, -3); d.rotation.z = (i % 2 ? 1 : -1) * 0.95; tw.add(d);
+  }
+  for (const h of [44, 70, 88]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(10.5, 1.4, 2.2), M.steel); arm.position.set(8.2, h, 0); arm.castShadow = true; tw.add(arm); }
+  g.add(tw);
+  // yıldırım direkleri ve su kulesi
+  for (const [x, z] of [[40, 40], [-40, 40], [40, -40], [-40, -40]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 120, 8), M.steel); p.position.set(x, 60, z); p.castShadow = true; g.add(p); }
+  const wt = new THREE.Mesh(new THREE.SphereGeometry(7, 24, 16), M.white); wt.position.set(90, 42, -70); wt.castShadow = true; g.add(wt);
+  const wl = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 36, 12), M.steel); wl.position.set(90, 18, -70); g.add(wl);
+  // yol
+  const road = new THREE.Mesh(new THREE.BoxGeometry(900, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0x55534e, roughness: 0.95 }));
+  road.position.set(-600, -0.1, 0); road.receiveShadow = true; g.add(road);
+  g.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
+  scene.add(g);
+  return g;
+}
+const pad = buildPad();
+const padBodyQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);
+
+// ============================================================================
+//  Parçacıklar (duman, Ay tozu) — gövde çerçevesinde saklanır
+// ============================================================================
+class Particles {
+  constructor(max, additive) {
+    this.max = max; this.n = 0;
+    this.p = new Float64Array(max * 3); this.v = new Float32Array(max * 3);
+    this.age = new Float32Array(max); this.life = new Float32Array(max);
+    this.s0 = new Float32Array(max); this.s1 = new Float32Array(max); this.a0 = new Float32Array(max);
+    this.kind = new Uint8Array(max);
+    this.pos = new Float32Array(max * 3); this.size = new Float32Array(max); this.alpha = new Float32Array(max); this.col = new Float32Array(max * 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aAlpha', new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aColor', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
+    this.geo = g;
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 800 } },
+      vertexShader: `#include <common>
+#include <logdepthbuf_pars_vertex>
+attribute float aSize; attribute float aAlpha; attribute vec3 aColor; uniform float uScale; varying float vA; varying vec3 vC;
+void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(aSize * uScale / max(-mv.z, 0.1), 1024.0); vA = aAlpha; vC = aColor;
+#include <logdepthbuf_vertex>
+}`,
+      fragmentShader: `#include <logdepthbuf_pars_fragment>
+varying float vA; varying vec3 vC;
+void main(){
+#include <logdepthbuf_fragment>
+vec2 q = gl_PointCoord - 0.5; float d = length(q) * 2.0; if (d > 1.0) discard;
+float a = vA * (1.0 - smoothstep(0.25, 1.0, d)); gl_FragColor = vec4(vC, a); }`,
+      transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    });
+    this.points = new THREE.Points(g, this.mat); this.points.frustumCulled = false; this.points.renderOrder = 4;
+    scene.add(this.points);
+  }
+  clear() { this.n = 0; this.geo.setDrawRange(0, 0); }
+  spawn(px, py, pz, vx, vy, vz, life, s0, s1, a0, kind) {
+    let i = this.n;
+    if (i >= this.max) { // en yaşlıyı değiştir
+      let best = 0, ba = -1; for (let k = 0; k < this.max; k += 7) { const r = this.age[k] / this.life[k]; if (r > ba) { ba = r; best = k; } } i = best;
+    } else this.n++;
+    this.p[i * 3] = px; this.p[i * 3 + 1] = py; this.p[i * 3 + 2] = pz;
+    this.v[i * 3] = vx; this.v[i * 3 + 1] = vy; this.v[i * 3 + 2] = vz;
+    this.age[i] = 0; this.life[i] = life; this.s0[i] = s0; this.s1[i] = s1; this.a0[i] = a0; this.kind[i] = kind || 0;
+  }
+  step(dt, drag, gx, gy, gz) {
+    const k = Math.exp(-drag * dt);
+    for (let i = 0; i < this.n; i++) {
+      this.age[i] += dt;
+      if (this.age[i] >= this.life[i]) { this.copy(this.n - 1, i); this.n--; i--; continue; }
+      const j = i * 3;
+      this.v[j] = this.v[j] * k + gx * dt; this.v[j + 1] = this.v[j + 1] * k + gy * dt; this.v[j + 2] = this.v[j + 2] * k + gz * dt;
+      this.p[j] += this.v[j] * dt; this.p[j + 1] += this.v[j + 1] * dt; this.p[j + 2] += this.v[j + 2] * dt;
+    }
+  }
+  copy(a, b) {
+    for (let c = 0; c < 3; c++) { this.p[b * 3 + c] = this.p[a * 3 + c]; this.v[b * 3 + c] = this.v[a * 3 + c]; }
+    this.age[b] = this.age[a]; this.life[b] = this.life[a]; this.s0[b] = this.s0[a]; this.s1[b] = this.s1[a]; this.a0[b] = this.a0[a]; this.kind[b] = this.kind[a];
+  }
+  render(bodyQ, center, light, colorFn) {
+    const e = bodyQ.elements || null;
+    const m = new THREE.Matrix4().makeRotationFromQuaternion(bodyQ).elements;
+    const ox = center.x - origin.x, oy = center.y - origin.y, oz = center.z - origin.z;
+    for (let i = 0; i < this.n; i++) {
+      const j = i * 3, x = this.p[j], y = this.p[j + 1], z = this.p[j + 2];
+      this.pos[j] = m[0] * x + m[4] * y + m[8] * z + ox;
+      this.pos[j + 1] = m[1] * x + m[5] * y + m[9] * z + oy;
+      this.pos[j + 2] = m[2] * x + m[6] * y + m[10] * z + oz;
+      const r = this.age[i] / this.life[i];
+      this.size[i] = this.s0[i] + (this.s1[i] - this.s0[i]) * Math.sqrt(r);
+      this.alpha[i] = this.a0[i] * (1 - r) * Math.min(1, r * 12 + 0.15);
+      colorFn(this, i, r, light);
+    }
+    for (const n of ['position', 'aSize', 'aAlpha', 'aColor']) this.geo.attributes[n].needsUpdate = true;
+    this.geo.setDrawRange(0, this.n);
+  }
+}
+const smoke = new Particles(5000, false);
+const dust = new Particles(2500, false);
+const smokeColor = (P, i, r, light) => {
+  const j = i * 3;
+  if (P.kind[i] === 1) { const g = Math.max(0, 1 - r * 6); P.col[j] = 0.55 * light + 0.9 * g; P.col[j + 1] = 0.54 * light + 0.5 * g; P.col[j + 2] = 0.52 * light + 0.2 * g; }
+  else { P.col[j] = 0.78 * light + 0.04; P.col[j + 1] = 0.77 * light + 0.04; P.col[j + 2] = 0.76 * light + 0.05; }
+};
+const dustColor = (P, i, r, light) => { const j = i * 3; P.col[j] = 0.62 * light; P.col[j + 1] = 0.6 * light; P.col[j + 2] = 0.57 * light; };
+
+// ============================================================================
+//  Yörünge çizgileri
+// ============================================================================
+function makeLine(max, color, opacity, dashed) {
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(max * 3);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setDrawRange(0, 0);
+  const mat = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 1, gapSize: 1, depthWrite: false })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+  const l = new THREE.Line(g, mat); l.frustumCulled = false; l.renderOrder = 6;
+  l.userData = { pos, max, n: 0, baseOpacity: opacity };
+  scene.add(l);
+  return l;
+}
+const trailE = makeLine(40000, 0xffa552, 0.85);
+const trailM = makeLine(40000, 0xffa552, 0.85);
+const pred = makeLine(3000, 0x9ccff5, 0.75);
+const moonOrbit = makeLine(721, 0x8a8c92, 0.22);
+{
+  const u = moonOrbit.userData;
+  for (let i = 0; i <= 720; i++) { const a = i / 720 * Math.PI * 2; u.pos.set([Math.cos(a) * C.D_EM, 0, -Math.sin(a) * C.D_EM], i * 3); }
+  moonOrbit.geometry.setDrawRange(0, 721); moonOrbit.geometry.attributes.position.needsUpdate = true;
+}
+function linePush(l, x, y, z) {
+  const u = l.userData; if (u.n >= u.max) return;
+  u.pos[u.n * 3] = x; u.pos[u.n * 3 + 1] = y; u.pos[u.n * 3 + 2] = z; u.n++;
+  l.geometry.setDrawRange(0, u.n); l.geometry.attributes.position.needsUpdate = true;
+}
+function lineReset(l) { l.userData.n = 0; l.geometry.setDrawRange(0, 0); }
+
+// ============================================================================
+//  Görev durumu
+// ============================================================================
+let mission, rocket, vehicle, debris = [], jetSeen = 0, legsK = 0, lmSeparated = false;
+let started = false, paused = false, autoWarp = true, manualWarp = 1, autoCam = true;
+let lastTrail = { t: -1e9, x: 0, y: 0, z: 0, moon: false };
+let warpSlowUntil = 0, predTimer = 0;
+const attQ = new THREE.Quaternion();
+
+const PHASE_STEP = { PRELAUNCH: 0, ASCENT: 0, PARKING: 1, TLI: 2, TLC: 3, MCC: 3, LOI: 4, LLO: 4, DOI: 5, DESCENT: 5, PDI: 5, LANDED: 6, FAILED: -1 };
+const STEPS = ['Kalkış', 'Park yörüngesi', 'TLI ateşlemesi', 'Ay yolculuğu', 'Ay yörüngesi', 'Motorlu iniş', 'Temas'];
+
+function resetMission() {
+  mission = new C.Mission({ onEvent: onEvent });
+  if (vehicle) scene.remove(vehicle);
+  for (const d of debris) scene.remove(d.obj);
+  debris = []; jetSeen = 0; legsK = 0; lmSeparated = false;
+  vehicle = new THREE.Group();
+  rocket = buildRocket();
+  vehicle.add(rocket);
+  scene.add(vehicle);
+  smoke.clear(); dust.clear();
+  lineReset(trailE); lineReset(trailM); lineReset(pred);
+  lastTrail = { t: -1e9, x: 0, y: 0, z: 0, moon: false };
+  $('log').querySelectorAll('.ev').forEach(e => e.remove());
+  buildStagesUI();
+  attQ.identity();
+  setAttitude(attQ, dirFromPhys(mission.ctl.dx, mission.ctl.dy));
+  vehicle.quaternion.copy(attQ);
+  camState.mode = 'vehicle'; camState.yaw = 0.95; camState.pitch = 0.07; camState.dist = 185;
+  camState.blend = 1; lastAutoCamPhase = 'PRELAUNCH|vehicle';
+  $('result').hidden = true; $('log').hidden = false;
+}
+
+function dirFromPhys(dx, dy) { return new THREE.Vector3(dx, 0, -dy).normalize(); }
+const _bx = new THREE.Vector3(), _bz = new THREE.Vector3(0, 1, 0), _m4 = new THREE.Matrix4();
+function setAttitude(q, d) {
+  _bx.crossVectors(d, _bz).normalize();
+  _m4.makeBasis(_bx, d, _bz);
+  return q.setFromRotationMatrix(_m4);
+}
+
+// ============================================================================
+//  Arayüz
+// ============================================================================
+const fmtN = (v, d) => v.toLocaleString('tr-TR', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+function fmtDist(m) {
+  if (!isFinite(m)) return '∞';
+  const a = Math.abs(m);
+  if (a < 10000) return fmtN(m, 0) + '<small>m</small>';
+  if (a < 1000000) return fmtN(m / 1000, 1) + '<small>km</small>';
+  return fmtN(m / 1000, 0) + '<small>km</small>';
+}
+function fmtVel(v) { return Math.abs(v) < 10000 ? fmtN(v, Math.abs(v) < 100 ? 1 : 0) + '<small>m/s</small>' : fmtN(v / 1000, 2) + '<small>km/s</small>'; }
+function fmtTime(t, sign) {
+  const s = Math.abs(t);
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), ss = Math.floor(s % 60);
+  const p = n => String(n).padStart(2, '0');
+  const core = (d ? d + 'g ' : '') + p(h) + ':' + p(m) + ':' + p(ss);
+  return sign ? (t < 0 ? 'T− ' : 'T+ ') + core : core;
+}
+function fmtDur(s) {
+  if (!isFinite(s)) return '—';
+  if (s < 3600) return fmtN(s / 60, 1) + '<small>dk</small>';
+  return fmtN(s / 3600, 2) + '<small>sa</small>';
+}
+
+function buildStagesUI() {
+  const box = $('stages'); box.innerHTML = '';
+  C.STAGES.forEach((S, i) => {
+    const r = document.createElement('div'); r.className = 'stage'; r.id = 'stg' + i;
+    r.innerHTML = `<span>${S.name}</span><span class="bar"><b></b></span><span class="num">100%</span>`;
+    box.appendChild(r);
+  });
+}
+function buildSteps() {
+  const box = $('steps'); box.innerHTML = '';
+  STEPS.forEach((s, i) => { const d = document.createElement('div'); d.className = 'stp'; d.id = 'step' + i; d.textContent = s; d.title = s; box.appendChild(d); });
+}
+buildSteps();
+
+function onEvent(e) {
+  const box = $('log');
+  const row = document.createElement('div'); row.className = 'ev ' + e.kind;
+  row.innerHTML = `<span class="num">${fmtTime(e.t, true)}</span><span></span>`;
+  row.lastChild.textContent = e.msg;
+  box.appendChild(row);
+  const evs = box.querySelectorAll('.ev'); if (evs.length > 7) evs[0].remove();
+  if (e.kind === 'major' || e.kind === 'land' || e.kind === 'fail' || e.kind === 'stage') toast(e.msg, e.kind === 'stage' ? '' : fmtTime(e.t, true));
+  if (e.kind === 'stage') warpSlowUntil = performance.now() + 3500;
+  if (e.kind === 'land' || e.kind === 'fail') setTimeout(showResult, 2600);
+}
+let toastTimer = 0;
+function toast(msg, sub) {
+  const t = $('toast'); t.innerHTML = ''; t.append(msg);
+  if (sub) { const s = document.createElement('small'); s.textContent = sub; t.appendChild(s); }
+  t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+function showResult() {
+  const tc = mission.touch;
+  const ok = mission.phase === 'LANDED';
+  $('resLbl').textContent = ok ? 'Temas · Görev başarılı' : 'Görev kaybı';
+  $('resLbl').className = 'lbl ' + (ok ? 'ok' : '');
+  $('resTitle').textContent = ok ? 'Ayça Ay’a indi' : 'Ayça kaybedildi';
+  const lon = tc ? ((tc.ang * 180 / Math.PI) % 360 + 540) % 360 - 180 : 0;
+  const facts = [
+    ['Görev süresi', fmtTime(mission.t, false)],
+    ['Temas hızı', tc ? fmtN(Math.abs(tc.vz), 2) + ' m/s' : '—'],
+    ['Yatay kayma', tc ? fmtN(Math.abs(tc.vh), 2) + ' m/s' : '—'],
+    ['Kalan yakıt', fmtN(Math.max(0, mission.prop()), 0) + ' kg'],
+    ['İniş boylamı', (lon >= 0 ? fmtN(lon, 1) + '° D' : fmtN(-lon, 1) + '° B')],
+    ['Kalan Δv', fmtN(mission.dvRemaining(), 0) + ' m/s'],
+  ];
+  $('resFacts').innerHTML = facts.map(([a, b]) => `<div><span class="lbl">${a}</span><span class="num">${b}</span></div>`).join('');
+  $('result').hidden = false; $('log').hidden = true;
+}
+
+// ============================================================================
+//  Kamera
+// ============================================================================
+const camState = { mode: 'vehicle', yaw: 0.95, pitch: 0.07, dist: 185, blend: 1, from: null, userTouched: false, up: new THREE.Vector3(1, 0, 0) };
+const camTarget = new THREE.Vector3(), camPosW = new THREE.Vector3();
+const CAM_DEFAULTS = {
+  vehicle: { yaw: 1.9, pitch: 0.12, dist: 260 },
+  system: { yaw: -1.2, pitch: 1.0, dist: 1.05e9 },
+  earth: { yaw: 0.6, pitch: 0.35, dist: 3.4 * C.R_E },
+  moon: { yaw: 0.6, pitch: 0.35, dist: 4.2 * C.R_M },
+};
+function setCam(mode, opts) {
+  opts = opts || {};
+  if (camState.mode === mode && !opts.force) return;
+  camState.from = { target: camTarget.clone(), pos: camPosW.clone(), up: camera.up.clone() };
+  camState.blend = 0;
+  camState.mode = mode;
+  const d = CAM_DEFAULTS[mode];
+  camState.yaw = opts.yaw ?? d.yaw; camState.pitch = opts.pitch ?? d.pitch; camState.dist = opts.dist ?? d.dist;
+  document.querySelectorAll('#camSeg [data-cam]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cam === mode)));
+}
+
+function vehicleFocusY() {
+  if (lmSeparated) return 3.0;
+  const st = mission.st;
+  return st === 0 ? 48 : st === 1 ? 70 : 84;
+}
+
+const _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _t3 = new THREE.Vector3();
+function computeCamera(vehW, earthC, moonC, dtReal) {
+  const mode = camState.mode;
+  let target, up, east, north = Y;
+  if (mode === 'vehicle') {
+    const axis = _t1.set(0, 1, 0).applyQuaternion(attQ);
+    target = vehW.clone().addScaledVector(axis, vehicleFocusY());
+    const nearMoon = vehW.distanceTo(moonC) < C.SOI_M;
+    const bc = nearMoon ? moonC : earthC;
+    const upT = vehW.clone().sub(bc).normalize();
+    if (camState.up.dot(upT) < 0.5) camState.up.copy(upT); else camState.up.lerp(upT, Math.min(1, dtReal * 3)).normalize();
+    up = camState.up.clone();
+  } else if (mode === 'earth') { target = earthC.clone(); up = Y.clone(); }
+  else if (mode === 'moon') { target = moonC.clone(); up = Y.clone(); }
+  else { target = earthC.clone().lerp(moonC, 0.45); up = Y.clone(); }
+  if (mode === 'vehicle') { east = new THREE.Vector3().crossVectors(Y, up).normalize(); north = new THREE.Vector3().crossVectors(up, east); }
+  else { east = new THREE.Vector3(1, 0, 0); north = new THREE.Vector3(0, 0, -1); }
+  const cp = Math.cos(camState.pitch), sp = Math.sin(camState.pitch);
+  const dirv = new THREE.Vector3()
+    .addScaledVector(east, cp * Math.cos(camState.yaw)).addScaledVector(north, cp * Math.sin(camState.yaw)).addScaledVector(up, sp);
+  let pos = target.clone().addScaledVector(dirv, camState.dist);
+  // zemin altına inme
+  for (const [c, R] of [[earthC, C.R_E], [moonC, C.R_M]]) {
+    const r = pos.distanceTo(c);
+    if (r < R + 2.5) { pos.sub(c).setLength(R + 2.5).add(c); }
+  }
+  let camUp = mode === 'vehicle' ? up : Y.clone();
+  if (camState.blend < 1 && camState.from) {
+    camState.blend = Math.min(1, camState.blend + dtReal / 1.6);
+    const e = camState.blend * camState.blend * (3 - 2 * camState.blend);
+    const f = camState.from;
+    const tgt = f.target.clone().lerp(target, e);
+    const d0 = f.pos.distanceTo(f.target), d1 = pos.distanceTo(target);
+    const dir0 = f.pos.clone().sub(f.target).normalize(), dir1 = pos.clone().sub(target).normalize();
+    const dd = dir0.lerp(dir1, e).normalize();
+    const dist = Math.exp(Math.log(Math.max(d0, 1)) * (1 - e) + Math.log(Math.max(d1, 1)) * e);
+    target = tgt; pos = tgt.clone().addScaledVector(dd, dist);
+    camUp = f.up.clone().lerp(camUp, e).normalize();
+  }
+  camTarget.copy(target); camPosW.copy(pos);
+  camera.up.copy(camUp);
+}
+
+// kullanıcı girişi
+let drag = null;
+const pointers = new Map();
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  drag = { x: e.clientX, y: e.clientY }; canvas.classList.add('drag');
+});
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  if (pointers.size === 2) {
+    const other = [...pointers.entries()].find(([id]) => id !== e.pointerId)[1];
+    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(e.clientX - other.x, e.clientY - other.y);
+    if (d0 > 0) zoom(d0 / d1);
+  } else if (drag) {
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    camState.yaw -= dx * 0.005; camState.pitch = THREE.MathUtils.clamp(camState.pitch + dy * 0.004, -1.45, 1.45);
+    userTouchedCam();
+  }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+});
+const endPtr = e => { pointers.delete(e.pointerId); if (!pointers.size) { drag = null; canvas.classList.remove('drag'); } };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+function zoom(f) {
+  const lim = { vehicle: [12, 3e9], system: [1e7, 5e9], earth: [C.R_E * 1.02, 5e9], moon: [C.R_M * 1.01, 5e9] }[camState.mode];
+  camState.dist = THREE.MathUtils.clamp(camState.dist * f, lim[0], lim[1]);
+  userTouchedCam();
+}
+function userTouchedCam() { if (autoCam && started) { autoCam = false; $('bAutoCam').setAttribute('aria-pressed', 'false'); } }
+
+// ============================================================================
+//  Otomatik zaman hızı ve kamera
+// ============================================================================
+const WARPS = [0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000];
+function autoWarpValue() {
+  const m = mission, ph = m.phase, ne = m.nextEvent, t = m.t;
+  const tte = ne ? ne.t - t : Infinity;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  if (performance.now() < warpSlowUntil) return 1;
+  switch (ph) {
+    case 'PRELAUNCH': return 1;
+    case 'ASCENT': return t < 28 ? 1 : t < 70 ? 3 : 6;
+    case 'PARKING': return clamp(tte / 5, 2, 600);
+    case 'TLI': return 10;
+    case 'TLC': return clamp(tte / 6, 20, 50000);
+    case 'MCC': return 2;
+    case 'LOI': return 10;
+    case 'LLO': return clamp(tte / 6, 2, 400);
+    case 'DOI': return 2;
+    case 'DESCENT': return clamp((ne ? tte : 600) / 6, 3, 300);
+    case 'PDI': { const h = m.telemetry().alt; return h > 4000 ? 10 : h > 800 ? 5 : h > 80 ? 2 : 1; }
+    default: return 1;
+  }
+}
+function currentWarp() {
+  if (!started || paused) return 0;
+  let w = autoWarp ? autoWarpValue() : manualWarp;
+  if (mission.ctl.thr > 0 || mission.phase === 'PDI') w = Math.min(w, 100);
+  return w;
+}
+let lastAutoCamPhase = '';
+function autoCamera() {
+  if (!autoCam) return;
+  const ph = mission.phase;
+  const tl = mission;
+  let want = 'vehicle', opts = null;
+  const dM = mission.telemetry().distM;
+  if (ph === 'TLC' && mission.t - (mission.tliEnd || 0) > 1500 && dM > 45e6) want = 'system';
+  const key = ph + '|' + want;
+  if (key === lastAutoCamPhase) return;
+  lastAutoCamPhase = key;
+  if (want === 'system') { setCam('system'); return; }
+  const presets = {
+    PRELAUNCH: { yaw: 0.95, pitch: 0.07, dist: 185 },
+    ASCENT: { yaw: 1.75, pitch: -0.05, dist: 230 },
+    PARKING: { yaw: 2.6, pitch: 0.18, dist: 150 },
+    TLI: { yaw: 2.3, pitch: 0.16, dist: 120 },
+    TLC: { yaw: 2.3, pitch: 0.2, dist: 40 },
+    MCC: { yaw: 2.3, pitch: 0.2, dist: 40 },
+    LOI: { yaw: 2.4, pitch: 0.22, dist: 45 },
+    LLO: { yaw: 2.2, pitch: 0.25, dist: 55 },
+    DOI: { yaw: 2.2, pitch: 0.25, dist: 45 },
+    DESCENT: { yaw: 2.0, pitch: 0.2, dist: 45 },
+    PDI: { yaw: 1.9, pitch: 0.16, dist: 40 },
+    LANDED: { yaw: 2.4, pitch: 0.12, dist: 34 },
+    FAILED: { yaw: 2.4, pitch: 0.2, dist: 60 },
+  };
+  const p = presets[ph] || presets.TLC;
+  if (ph === 'ASCENT' && camState.mode === 'vehicle') { // fırlatmada yumuşak geçiş
+    camState.from = { target: camTarget.clone(), pos: camPosW.clone(), up: camera.up.clone() }; camState.blend = 0;
+    Object.assign(camState, p); return;
+  }
+  setCam('vehicle', Object.assign({ force: camState.mode !== 'vehicle' || true }, p));
+}
+
+// ============================================================================
+//  Çerçeve döngüsü
+// ============================================================================
+const _q = new THREE.Quaternion(), _eQ = new THREE.Quaternion(), _mQ = new THREE.Quaternion();
+const earthC = new THREE.Vector3(0, 0, 0), moonC = new THREE.Vector3(), vehW = new THREE.Vector3();
+let lastFrame = performance.now(), hudTimer = 0, simAccum = 0;
+
+function desiredDir() {
+  const m = mission, s = m.s;
+  const ph = m.phase;
+  if (ph === 'PRELAUNCH' || ph === 'LANDED') {
+    if (ph === 'LANDED') { const R = m.moonRel(); return dirFromPhys(R.x, R.y); }
+    return dirFromPhys(s[0], s[1]);
+  }
+  if (m.ctl.thr > 0 || ph === 'ASCENT' || ph === 'PDI') return dirFromPhys(m.ctl.dx, m.ctl.dy);
+  const ne = m.nextEvent;
+  const R = m.moonRel();
+  const tte = ne ? ne.t - m.t : Infinity;
+  if (ph === 'PARKING') return dirFromPhys(s[2], s[3]);
+  if (ph === 'TLC' && ne && tte < 900) {
+    if (ne.kind === 'LOI') return dirFromPhys(-R.vx, -R.vy);
+  }
+  if (ph === 'TLC' && ne && ne.kind === 'LOI' && tte < 3 * 3600) return dirFromPhys(-R.vx, -R.vy);
+  if (ph === 'LLO' || ph === 'DESCENT') return dirFromPhys(-R.vx, -R.vy);
+  if (ph === 'TLC') return dirFromPhys(s[2], s[3]);
+  return dirFromPhys(m.ctl.dx, m.ctl.dy);
+}
+
+function handleJettison() {
+  const list = mission.jettisoned;
+  while (jetSeen < list.length) {
+    const j = list[jetSeen++];
+    const u = rocket.userData;
+    let objs = [];
+    if (j.kind === 'S1') objs = [u.s1]; else if (j.kind === 'S2') objs = [u.s2]; else if (j.kind === 'S3') objs = [u.s3];
+    else if (j.kind === 'FAIRING') objs = u.fair;
+    objs.forEach((o, k) => {
+      if (!o.parent) return;
+      const holder = new THREE.Group();
+      holder.quaternion.copy(vehicle.quaternion);
+      rocket.remove(o); holder.add(o);
+      if (o.userData.plume) o.userData.plume.visible = false;
+      scene.add(holder);
+      const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(vehicle.quaternion);
+      const pivotY = { S1: 22, S2: 58, S3: 76, FAIRING: 88 }[j.kind] || 0;
+      let dv = axis.clone().multiplyScalar(-1.5), spin = new THREE.Vector3((Math.random() - 0.5) * 0.03, 0, (Math.random() - 0.5) * 0.05);
+      if (j.kind === 'FAIRING') {
+        const side = new THREE.Vector3(1, 0, 0).applyQuaternion(vehicle.quaternion).multiplyScalar(k ? 4 : -4);
+        dv = side.add(axis.clone().multiplyScalar(-0.6));
+        spin = new THREE.Vector3(0, 0, k ? -0.15 : 0.15);
+      }
+      // parçayı kendi merkezi etrafında döndürmek için pivotu merkeze taşı
+      o.position.y -= pivotY;
+      const s = Float64Array.from(j.s || mission.s);
+      s[0] += axis.x * pivotY; s[1] += -axis.z * pivotY;
+      s[2] += dv.x; s[3] += -dv.z;
+      debris.push({ obj: holder, part: o, s, t: j.t, life: 900, spin });
+    });
+  }
+  // iniş aracının ayrılması
+  if (!lmSeparated && mission.lmSep) {
+    lmSeparated = true;
+    const lm = rocket.userData.lm;
+    rocket.remove(lm); lm.position.set(0, 0, 0); vehicle.add(lm);
+  }
+}
+
+function stepDebris() {
+  const tEnd = mission.t;
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    const dt = tEnd - d.t;
+    let n = 0;
+    while (d.t < tEnd - 1e-6 && n++ < 2000) {
+      const h = Math.min(tEnd - d.t, 1.0);
+      C.rk4(d.t, d.s, h, null, 30);
+      d.t += h;
+    }
+    d.t = tEnd;
+    d.obj.rotateOnAxis(new THREE.Vector3(1, 0, 0), d.spin.x * dt);
+    d.obj.rotateOnAxis(new THREE.Vector3(0, 0, 1), d.spin.z * dt);
+    d.life -= dt;
+    const rE = Math.hypot(d.s[0], d.s[1]);
+    if (d.life < 0 || rE < C.R_E) { scene.remove(d.obj); debris.splice(i, 1); }
+  }
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dtReal = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  const warp = currentWarp();
+  const simDt = dtReal * warp;
+  const m = mission;
+  const phBefore = m.phase;
+  if (simDt > 0) {
+    const tBefore = m.t;
+    m.advance(simDt, 40000);
+    const done = m.t - tBefore;
+    handleJettison();
+    stepDebris();
+    stepParticles(Math.min(done, 0.5));
+  }
+  autoCamera();
+
+  // --- dünya konumları (three uzayı, çift hassasiyet)
+  const t = m.t;
+  earthQuat(t, _eQ); moonQuat(t, _mQ); moonCenter(t, moonC);
+  vehW.set(m.s[0], 0, -m.s[1]);
+
+  // --- tutum
+  const want = desiredDir();
+  setAttitude(_q, want);
+  const ang = attQ.angleTo(_q);
+  const rate = (m.ctl.thr > 0 || m.phase === 'ASCENT' || m.phase === 'PDI') ? 0.8 : 0.12;
+  const maxStep = Math.max(rate * (simDt || 0), m.phase === 'PRELAUNCH' || m.phase === 'LANDED' ? 1 : 0);
+  if (ang > 1e-6) attQ.rotateTowards(_q, Math.max(maxStep, dtReal * 0.02));
+  vehicle.quaternion.copy(attQ);
+
+  computeCamera(vehW, earthC, moonC, dtReal);
+  origin.copy(camTarget);
+  camera.position.copy(camPosW).sub(origin);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+
+  vehicle.position.copy(vehW).sub(origin);
+  for (const d of debris) {
+    d.obj.position.set(d.s[0] - origin.x, -origin.y, -d.s[1] - origin.z);
+  }
+
+  // --- gezegenler
+  const camWorld = camPosW;
+  const pixAng = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / (canvas.clientHeight * renderer.getPixelRatio());
+  const dE = earth.update(earthC, _eQ, camWorld);
+  const camAlt = dE - C.R_E;
+  earth.mat.uniforms.uPix.value = pixAng; earth.mat.uniforms.uCamAlt.value = camAlt;
+  clouds.update(earthC, _eQ, camWorld); clouds.mat.uniforms.uPix.value = pixAng; clouds.mat.uniforms.uTime.value = t;
+  const inside = dE < C.R_E + 100000;
+  atmo.update(earthC, _eQ, camWorld);
+  atmo.mat.side = inside ? THREE.BackSide : THREE.FrontSide;
+  atmo.mat.uniforms.uCam.value.copy(camWorld).sub(earthC).multiplyScalar(0.001);
+  clouds.mesh.visible = camAlt < 2.5e8;
+  const dMn = moon.update(moonC, _mQ, camWorld); moon.mat.uniforms.uPix.value = pixAng;
+  moon.mat.uniforms.uEarthDir.value.copy(earthC).sub(moonC).normalize();
+
+  // --- rampa
+  const padUp = _t2.set(1, 0, 0).applyQuaternion(_eQ);
+  pad.position.copy(padUp).multiplyScalar(C.R_E).sub(origin);
+  pad.quaternion.copy(_eQ).multiply(padBodyQ);
+  pad.visible = camAlt < 400000;
+
+  // --- ışık
+  const vehRel = _t3.copy(vehW).sub(origin);
+  sunLight.target.position.copy(vehRel);
+  sunLight.position.copy(vehRel).addScaledVector(SUN3, 400);
+  const nearMoon = vehW.distanceTo(moonC) < C.SOI_M;
+  const bodyC = nearMoon ? moonC : earthC, bodyR = nearMoon ? C.R_M : C.R_E;
+  const upV = vehW.clone().sub(bodyC).normalize();
+  const vehAlt = vehW.distanceTo(bodyC) - bodyR;
+  const sunElev = upV.dot(SUN3);
+  const inAtmo = !nearMoon && vehAlt < 60000;
+  const camInAtmo = camAlt < 60000;
+  // gölge (Dünya'nın gölgesinde mi?)
+  const shadowed = inEarthShadow(vehW) || (nearMoon && inMoonShadow(vehW, moonC));
+  sunLight.intensity = shadowed ? 0 : 2.3;
+  hemi.intensity = inAtmo ? 0.25 + 0.5 * THREE.MathUtils.clamp(sunElev * 3, 0, 1) : 0.06;
+  hemi.color.set(inAtmo ? 0xa9c8ff : 0x8a9ab8); hemi.groundColor.set(nearMoon ? 0x9a958d : 0x40372c);
+  if (nearMoon && vehAlt < 3000) hemi.intensity = 0.28 * THREE.MathUtils.clamp(sunElev * 3, 0.15, 1);
+  const toEarth = earthC.clone().sub(vehW); const dEv = toEarth.length();
+  earthLight.intensity = nearMoon ? 0.18 : THREE.MathUtils.clamp(0.25 * (C.R_E * 4 / dEv), 0, 0.35);
+  earthLight.target.position.copy(vehRel); earthLight.position.copy(vehRel).addScaledVector(toEarth.normalize(), 100);
+  const sz = mission.st === 0 && !lmSeparated ? 120 : 60;
+  Object.assign(sunLight.shadow.camera, { left: -sz, right: sz, top: sz, bottom: -sz }); sunLight.shadow.camera.updateProjectionMatrix();
+
+  // gölge yakalayıcı
+  if (nearMoon && vehAlt < 800 && sunElev > 0.02 && !shadowed) {
+    shadowCatcher.visible = true;
+    const nadir = bodyC.clone().addScaledVector(upV, bodyR + (nearMoon ? 0.06 : 0.05));
+    shadowCatcher.position.copy(nadir).sub(origin);
+    shadowCatcher.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), upV);
+  } else shadowCatcher.visible = false;
+
+  // --- motor efektleri
+  updateEngines(t, vehAlt, nearMoon);
+
+  // --- iniş ayakları
+  if (lmSeparated) {
+    const lm = rocket.userData.lm;
+    legsK = Math.min(1, legsK + (mission.legs ? dtReal / 2.5 : 0));
+    setLegs(lm, legsK);
+  }
+
+  // --- Güneş, yıldızlar
+  const sunDist = 1e11;
+  sunCore.position.copy(camera.position).addScaledVector(SUN3, sunDist);
+  sunGlow.position.copy(sunCore.position);
+  const glowScale = camInAtmo && sunElevAt(camWorld) > 0 ? 14 : 8;
+  sunCore.scale.setScalar(sunDist * 0.036); sunGlow.scale.setScalar(sunDist * 0.036 * glowScale);
+  stars.position.copy(camera.position);
+  const skyBright = camInAtmo ? THREE.MathUtils.clamp((sunElevAt(camWorld) + 0.15) * 4, 0, 1) * THREE.MathUtils.clamp(1 - camAlt / 60000, 0, 1) : 0;
+  stars.material.uniforms.uOp.value = 1 - skyBright * 0.97;
+  stars.material.uniforms.uDpr.value = renderer.getPixelRatio();
+
+  // --- parçacıklar
+  const light = THREE.MathUtils.clamp(sunElev * 2 + 0.25, 0.12, 1.05);
+  smoke.render(_eQ, earthC, light, smokeColor);
+  dust.render(_mQ, moonC, THREE.MathUtils.clamp(sunElev * 2.5, 0.08, 1), dustColor);
+  const sc = canvas.clientHeight * renderer.getPixelRatio() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  smoke.mat.uniforms.uScale.value = sc; dust.mat.uniforms.uScale.value = sc;
+
+  // --- yörünge çizgileri
+  updateTrails(now);
+  const camDistVeh = camPosW.distanceTo(vehW);
+  const lineFade = THREE.MathUtils.smoothstep(camDistVeh, 3000, 40000);
+  trailE.position.copy(earthC).sub(origin); trailE.material.opacity = trailE.userData.baseOpacity * lineFade;
+  trailM.position.copy(moonC).sub(origin); trailM.material.opacity = trailM.userData.baseOpacity * lineFade;
+  pred.position.copy(pred.userData.moonFrame ? moonC : earthC).sub(origin); pred.material.opacity = pred.userData.baseOpacity * lineFade;
+  moonOrbit.position.copy(earthC).sub(origin);
+  moonOrbit.material.opacity = 0.22 * THREE.MathUtils.smoothstep(camPosW.distanceTo(earthC), 2e7, 1.5e8);
+
+  // --- etiketler
+  placeTag('tagE', earthC, C.R_E, 'Dünya', false, 'E');
+  placeTag('tagM', moonC, C.R_M, 'Ay', false, 'M');
+  placeTag('tagV', vehW, 60, lmSeparated ? 'Ayça' : 'Hilal', true);
+
+  renderer.render(scene, camera);
+
+  hudTimer -= dtReal;
+  if (hudTimer <= 0) { hudTimer = 0.1; updateHUD(warp); }
+  if (m.phase !== phBefore) lastAutoCamPhase = lastAutoCamPhase; // no-op; autoCamera tracks
+}
+
+function sunElevAt(p) { const up = p.clone().normalize(); return up.dot(SUN3); }
+function inEarthShadow(p) {
+  const d = p.dot(SUN3);
+  if (d > 0) return false;
+  const perp = p.clone().addScaledVector(SUN3, -d).length();
+  return perp < C.R_E;
+}
+function inMoonShadow(p, mc) {
+  const r = p.clone().sub(mc);
+  const d = r.dot(SUN3);
+  if (d > 0) return false;
+  return r.addScaledVector(SUN3, -d).length() < C.R_M;
+}
+
+function occluded(p, skip) {
+  // kameradan hedefe giden doğru Dünya ya da Ay tarafından kesiliyor mu?
+  const o = camPosW, d = p.clone().sub(o); const L = d.length(); d.divideScalar(L);
+  for (const [c, R, name] of [[earthC, C.R_E, 'E'], [moonC, C.R_M, 'M']]) {
+    if (name === skip) continue;
+    const oc = o.clone().sub(c); const b = oc.dot(d); const q = oc.lengthSq() - R * R; const h = b * b - q;
+    if (h > 0) { const t = -b - Math.sqrt(h); if (t > 0 && t < L) return true; }
+  }
+  return false;
+}
+const tagEls = {};
+function placeTag(id, posW, radius, text, isVeh, self) {
+  let el = tagEls[id];
+  if (!el) { el = document.createElement('div'); el.className = 'tag' + (isVeh ? ' veh' : ''); el.textContent = text; $('tags').appendChild(el); tagEls[id] = el; }
+  if (el.textContent !== text) el.textContent = text;
+  const rel = posW.clone().sub(origin);
+  const d = rel.distanceTo(camera.position);
+  const pxSize = radius / d / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * canvas.clientHeight;
+  const v = rel.project(camera);
+  const show = v.z < 1 && v.z > -1 && pxSize < 26 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1 && started && !occluded(posW, self);
+  el.hidden = !show;
+  if (show) {
+    const x = (v.x * 0.5 + 0.5) * canvas.clientWidth, y = (-v.y * 0.5 + 0.5) * canvas.clientHeight;
+    el.style.transform = `translate(${x - 4}px, ${y - 7}px)`;
+  }
+}
+
+// --- motorlar, egzoz, duman ve toz
+function updateEngines(t, vehAlt, nearMoon) {
+  const m = mission;
+  const u = rocket.userData;
+  const thr = m.ctl.thr;
+  const pAmb = nearMoon ? 0 : Math.exp(-Math.max(0, vehAlt) / C.H_ATM);
+  const active = lmSeparated ? u.lm : (m.st === 0 ? u.s1 : m.st === 1 ? u.s2 : m.st === 2 ? u.s3 : u.lm);
+  for (const g of [u.s1, u.s2, u.s3, u.lm]) {
+    const p = g.userData.plume; if (!p) continue;
+    const on = g === active && thr > 0;
+    p.visible = on;
+    if (g.userData.bells) for (const b of g.userData.bells) b.material.emissiveIntensity = on ? 0.9 * thr : 0;
+    if (!on) continue;
+    const U = p.material.uniforms;
+    U.uThr.value = Math.min(1, 0.35 + thr * 0.75); U.uP.value = pAmb; U.uTime.value = performance.now() / 1000;
+    const r0 = p.userData.r0;
+    U.uR0.value = r0;
+    const base = g === u.s1 ? 32 : g === u.lm ? 9 : 22;
+    U.uLen.value = base * (1 + 2.8 * (1 - pAmb)) * (0.6 + 0.4 * thr);
+    U.uSpread.value = 1.25 + 5.5 * (1 - pAmb);
+    U.uVis.value = g === u.s1 ? 1.0 : (g === u.lm ? 0.5 : 0.4) * (0.5 + 0.5 * pAmb + 0.3);
+  }
+  const axis = _t1.set(0, 1, 0).applyQuaternion(attQ);
+  if (thr > 0 && !nearMoon && vehAlt < 50000) {
+    engineLight.intensity = thr * (m.st === 0 ? 4 : 1.5);
+    engineLight.distance = 500;
+    engineLight.position.copy(vehW).sub(origin).addScaledVector(axis, -12);
+  } else if (thr > 0 && lmSeparated) {
+    engineLight.intensity = thr * 1.2; engineLight.distance = 40;
+    engineLight.position.copy(vehW).sub(origin).addScaledVector(axis, -1);
+  } else engineLight.intensity = 0;
+}
+
+const _pb = new THREE.Vector3(), _vb = new THREE.Vector3(), _qInv = new THREE.Quaternion();
+let smokeCarry = 0, dustCarry = 0;
+function stepParticles(dt) {
+  if (dt <= 0) return;
+  const m = mission;
+  smoke.step(dt, 0.35, 0, 0, 0);
+  dust.step(dt, 0, 0, 0, 0);
+  // Ay tozu: balistik; gövde çerçevesinde yerçekimi yüzeye doğru — basit: radyal
+  const t = m.t;
+  const thr = m.ctl.thr;
+  if (thr > 0 && !lmSeparated && m.phase !== 'PRELAUNCH' || m.phase === 'PRELAUNCH' && thr > 0) {
+    const vw = new THREE.Vector3(m.s[0], 0, -m.s[1]);
+    const h = vw.length() - C.R_E;
+    if (h < 14000) {
+      const eQ = earthQuat(t, new THREE.Quaternion()); _qInv.copy(eQ).invert();
+      const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(attQ);
+      const nozzle = vw.clone().addScaledVector(axis, (m.st === 0 ? -1 : 44));
+      _pb.copy(nozzle).applyQuaternion(_qInv);
+      const upB = _pb.clone().normalize();
+      const axB = axis.clone().applyQuaternion(_qInv);
+      const nearPad = h < C.PAD_H + 120;
+      const rate = (nearPad ? 140 : 70) * thr;
+      smokeCarry += rate * dt;
+      while (smokeCarry >= 1) {
+        smokeCarry -= 1;
+        if (nearPad) {
+          // alev kanalından yana doğru kaçan duman ve buhar
+          const ang = Math.random() * Math.PI * 2;
+          const side = new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang));
+          const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), upB);
+          side.applyQuaternion(q);
+          const base = upB.clone().multiplyScalar(C.R_E + 2 + Math.random() * 6);
+          const sp = 25 + Math.random() * 45;
+          const v = side.multiplyScalar(sp).addScaledVector(upB, 4 + Math.random() * 10);
+          smoke.spawn(base.x + side.x * 0.2, base.y + side.y * 0.2, base.z + side.z * 0.2, v.x, v.y, v.z, 26 + Math.random() * 18, 8, 55 + Math.random() * 30, 0.5, Math.random() < 0.35 ? 1 : 0);
+        } else {
+          const jit = () => (Math.random() - 0.5) * 4;
+          const v = axB.clone().multiplyScalar(-(40 + Math.random() * 30));
+          const back = Math.random() * 30;
+          smoke.spawn(_pb.x - axB.x * back + jit(), _pb.y - axB.y * back + jit(), _pb.z - axB.z * back + jit(), v.x, v.y, v.z, 18 + Math.random() * 14, 6, 28 + h / 400, h < 3000 ? 0.45 : 0.3, Math.random() < 0.3 ? 1 : 0);
+        }
+      }
+    }
+  }
+  // Ay tozu
+  if (lmSeparated && thr > 0) {
+    const R = m.moonRel(); const r = Math.hypot(R.x, R.y); const h = r - C.R_M;
+    if (h < 30) {
+      const mQ = moonQuat(t, new THREE.Quaternion()); _qInv.copy(mQ).invert();
+      const rel = new THREE.Vector3(R.x, 0, -R.y).applyQuaternion(_qInv);
+      const upB = rel.clone().normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), upB);
+      const k = (1 - h / 30) * thr;
+      dustCarry += 500 * k * dt;
+      while (dustCarry >= 1) {
+        dustCarry -= 1;
+        const ang = Math.random() * Math.PI * 2;
+        const side = new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang)).applyQuaternion(q);
+        const base = upB.clone().multiplyScalar(C.R_M + 0.15).addScaledVector(side, 1 + Math.random() * 3);
+        const sp = 20 + Math.random() * 45;
+        const v = side.multiplyScalar(sp).addScaledVector(upB, 0.5 + Math.random() * 2.5);
+        dust.spawn(base.x, base.y, base.z, v.x, v.y, v.z, 1.2 + Math.random() * 1.6, 0.6, 5 + Math.random() * 4, 0.28, 0);
+      }
+    }
+  }
+}
+
+// --- iz ve tahmin çizgileri
+function updateTrails(now) {
+  const m = mission;
+  if (m.phase === 'PRELAUNCH') return;
+  const R = m.moonRel();
+  const rM = Math.hypot(R.x, R.y);
+  const inMoon = rM < C.SOI_M;
+  const t = m.t;
+  if (m.phase !== 'LANDED') {
+    if (!inMoon) {
+      const x = m.s[0], y = m.s[1];
+      const r = Math.hypot(x, y);
+      const moved = Math.hypot(x - lastTrail.x, y - lastTrail.y);
+      if (lastTrail.moon || moved > Math.max(150, r * 0.004) || (t - lastTrail.t > 120 && moved > 50)) {
+        linePush(trailE, x, 0, -y); lastTrail = { t, x, y, moon: false };
+      }
+    } else {
+      const moved = Math.hypot(R.x - lastTrail.x, R.y - lastTrail.y);
+      if (!lastTrail.moon || moved > Math.max(20, rM * 0.003)) {
+        linePush(trailM, R.x, 0, -R.y); lastTrail = { t, x: R.x, y: R.y, moon: true };
+      }
+    }
+  }
+  if (now - predTimer > 250) {
+    predTimer = now;
+    computePrediction(inMoon);
+  }
+}
+function computePrediction(inMoon) {
+  const m = mission, u = pred.userData;
+  u.n = 0;
+  if (m.phase === 'LANDED' || m.phase === 'PRELAUNCH' || m.phase === 'FAILED') { pred.geometry.setDrawRange(0, 0); return; }
+  const s = Float64Array.from(m.s); let t = m.t;
+  let horizon;
+  if (inMoon) { const el = m.moonEl(); horizon = el.T < 1e6 ? el.T * 1.02 : 86400; }
+  else { const el = m.earthEl(); horizon = el.T < 5e5 ? el.T * 1.02 : 6 * 86400; }
+  const t0 = t; let steps = 0, sampleEvery = 1, lastX = 1e30, lastY = 1e30;
+  u.moonFrame = inMoon;
+  while (t - t0 < horizon && steps < 6000 && u.n < u.max) {
+    let dt = C.coastDt(t, s);
+    C.rk4(t, s, dt, null, 20); t += dt; steps++;
+    const Ms = C.moonState(t);
+    let x, y;
+    if (inMoon) { x = s[0] - Ms.x; y = s[1] - Ms.y; } else { x = s[0]; y = s[1]; }
+    const r = Math.hypot(x, y);
+    if (Math.hypot(x - lastX, y - lastY) > r * 0.01 || u.n === 0) {
+      u.pos[u.n * 3] = x; u.pos[u.n * 3 + 1] = 0; u.pos[u.n * 3 + 2] = -y; u.n++; lastX = x; lastY = y;
+    }
+    const rE = Math.hypot(s[0], s[1]);
+    if (rE < C.R_E) break;
+    if (Math.hypot(s[0] - Ms.x, s[1] - Ms.y) < C.R_M) break;
+    if (!inMoon && Math.hypot(s[0] - Ms.x, s[1] - Ms.y) < C.SOI_M * 0.5) break;
+  }
+  pred.geometry.setDrawRange(0, u.n);
+  pred.geometry.attributes.position.needsUpdate = true;
+}
+
+// --- HUD
+function updateHUD(warp) {
+  const m = mission, tl = m.telemetry();
+  $('met').textContent = fmtTime(m.t, true);
+  const burning = m.ctl.thr > 0;
+  const state = m.phase === 'LANDED' ? 'ok' : m.phase === 'FAILED' ? 'fail' : m.phase === 'PRELAUNCH' ? 'hold' : burning ? 'burn' : 'coast';
+  const chip = $('phaseChip'); chip.dataset.state = state;
+  let pn = tl.phaseName;
+  if (m.phase === 'ASCENT' && m.sepUntil > m.t) pn = 'Kademe ayrılması';
+  else if (m.phase === 'ASCENT') pn = 'Yükseliş · ' + C.STAGES[m.st].name;
+  else if (m.phase === 'PDI') pn = { BRAKE: 'Motorlu iniş · frenleme', APPROACH: 'Motorlu iniş · yaklaşma', TERMINAL: 'Motorlu iniş · son alçalma' }[m.pdiSub] || pn;
+  $('phaseName').textContent = pn;
+  const ne = m.nextEvent;
+  if (!started) $('next').innerHTML = 'Rampada · yakıt dolumu tamam';
+  else if (ne && ne.t > m.t) $('next').innerHTML = `Sonraki: <b>${ne.name}</b> <span class="num">${fmtTime(ne.t - m.t)}</span>`;
+  else $('next').textContent = '';
+
+  $('tBody').textContent = tl.body;
+  $('tAlt').innerHTML = fmtDist(tl.alt);
+  const surf = (m.phase === 'ASCENT' && tl.alt < 60000) || m.phase === 'PRELAUNCH' || m.phase === 'PDI' || m.phase === 'LANDED';
+  $('tVlbl').textContent = surf ? 'Yer hızı' : 'Yörünge hızı';
+  $('tVel').innerHTML = fmtVel(surf ? tl.vSurf : tl.v);
+  $('tV2lbl').textContent = surf ? 'Yörünge hızı' : 'Yer hızı';
+  $('tV2').innerHTML = fmtVel(surf ? tl.v : tl.vSurf);
+  $('tVz').innerHTML = fmtVel(tl.vz);
+  $('tAcc').innerHTML = fmtN(tl.accel / C.G0, 2) + '<small>g</small>';
+  $('rowQ').hidden = !(tl.body === 'Dünya' && tl.alt < C.ATM_TOP);
+  $('tQ').innerHTML = fmtN(tl.q / 1000, 1) + '<small>kPa</small>';
+  $('tThr').style.width = (m.ctl.thr * 100).toFixed(0) + '%';
+  $('tOrbBody').textContent = tl.body;
+  const bound = tl.el.eps < 0;
+  const noOrbit = m.phase === 'PRELAUNCH' || m.phase === 'LANDED' || (m.phase === 'FAILED' && tl.alt < 10);
+  $('tAp').innerHTML = !bound ? 'kaçış' : tl.pe < -1000 && tl.ap < 1000 ? '—' : fmtDist(tl.ap);
+  $('tPe').innerHTML = tl.pe < -1000 ? 'yüzey altı' : fmtDist(tl.pe);
+  $('tPer').innerHTML = bound && tl.pe > 0 ? fmtDur(tl.el.T) : '—';
+  if (noOrbit) { $('tAp').textContent = '—'; $('tPe').textContent = '—'; $('tPer').textContent = '—'; }
+  $('tMass').textContent = fmtN(tl.mass / 1000, 1) + ' t';
+  C.STAGES.forEach((S, i) => {
+    const row = $('stg' + i);
+    let frac;
+    if (i < m.st) frac = 0; else if (i === m.st) frac = Math.max(0, m.prop()) / S.prop; else frac = 1;
+    row.className = 'stage' + (i < m.st ? ' gone' : '') + (i === m.st && m.ctl.thr > 0 ? ' active' : '');
+    row.querySelector('b').style.width = (frac * 100).toFixed(1) + '%';
+    row.querySelector('.num').textContent = i < m.st ? 'ayrıldı' : Math.round(frac * 100) + '%';
+  });
+  $('tDv').innerHTML = fmtN(tl.dvLeft, 0) + '<small>m/s</small>';
+  $('tDE').innerHTML = fmtDist(tl.distE);
+  $('tDM').innerHTML = fmtDist(tl.distM);
+  $('warpVal').textContent = !started ? '×1' : paused ? 'durdu' : '×' + fmtN(warp, warp < 1 ? 2 : 0);
+  $('bPause').textContent = paused ? '▶' : '❚❚';
+  // zaman çizelgesi
+  const cur = PHASE_STEP[m.phase];
+  for (let i = 0; i < STEPS.length; i++) {
+    const el = $('step' + i);
+    el.className = 'stp' + (i < cur || (m.phase === 'LANDED') ? ' done' : '') + (i === cur && m.phase !== 'LANDED' ? ' now' : '');
+    if (i === cur) el.style.setProperty('--p', stepProgress(m) + '%');
+  }
+  $('busy').hidden = true;
+}
+function stepProgress(m) {
+  const ph = m.phase, tl = m.telemetry();
+  if (ph === 'PRELAUNCH') return 5;
+  if (ph === 'ASCENT') return Math.min(100, tl.v / 7800 * 100);
+  if (ph === 'PARKING' && m.nextEvent) return Math.min(100, (m.t - m.parkT) / (m.nextEvent.t - m.parkT) * 100);
+  if (ph === 'TLI' && m.plan) return Math.min(100, m.s[5] / m.plan.dv * 100);
+  if ((ph === 'TLC' || ph === 'MCC') && m.predPeri) return Math.min(100, (m.t - m.tliEnd) / (m.predPeri.t - m.tliEnd) * 100);
+  if (ph === 'TLC') return 5;
+  if (ph === 'LOI') return 20;
+  if (ph === 'LLO' && m.nextEvent) return 30 + Math.min(70, (m.t - m.loiEnd) / (m.nextEvent.t - m.loiEnd) * 70);
+  if (ph === 'DOI') return 10;
+  if (ph === 'DESCENT') return 25;
+  if (ph === 'PDI') return Math.min(100, 30 + 70 * (1 - Math.min(1, tl.alt / 15000)));
+  return 100;
+}
+
+// ============================================================================
+//  Kontroller
+// ============================================================================
+$('bStart').addEventListener('click', () => {
+  started = true; $('brief').hidden = true;
+  toast('Geri sayım başladı', 'T− 12 s');
+});
+$('bRestart').addEventListener('click', () => {
+  resetMission(); started = true; paused = false; autoCam = true; $('bAutoCam').setAttribute('aria-pressed', 'true'); lastAutoCamPhase = '';
+  toast('Yeni görev', 'Geri sayım başladı');
+});
+$('bExplore').addEventListener('click', () => { $('result').hidden = true; $('log').hidden = false; autoCam = false; $('bAutoCam').setAttribute('aria-pressed', 'false'); });
+$('bPause').addEventListener('click', () => { paused = !paused; });
+function stepWarp(dir) {
+  const cur = currentWarp() || manualWarp;
+  let i = WARPS.findIndex(w => w >= cur - 1e-9); if (i < 0) i = WARPS.length - 1;
+  i = Math.max(0, Math.min(WARPS.length - 1, i + dir));
+  manualWarp = WARPS[i]; autoWarp = false; $('bAuto').setAttribute('aria-pressed', 'false');
+}
+$('bSlow').addEventListener('click', () => stepWarp(-1));
+$('bFast').addEventListener('click', () => stepWarp(1));
+$('bAuto').addEventListener('click', () => { autoWarp = !autoWarp; $('bAuto').setAttribute('aria-pressed', String(autoWarp)); });
+document.querySelectorAll('#camSeg [data-cam]').forEach(b => b.addEventListener('click', () => {
+  setCam(b.dataset.cam, { force: true }); autoCam = false; $('bAutoCam').setAttribute('aria-pressed', 'false');
+}));
+$('bAutoCam').addEventListener('click', () => { autoCam = !autoCam; $('bAutoCam').setAttribute('aria-pressed', String(autoCam)); lastAutoCamPhase = ''; });
+$('telToggle').addEventListener('click', () => { const t = $('telemetry'); t.classList.toggle('collapsed'); $('telToggle').textContent = t.classList.contains('collapsed') ? 'Tümü' : 'Az'; });
+if (window.matchMedia('(max-width: 640px)').matches) $('telemetry').classList.add('collapsed');
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  if (e.code === 'Space') { e.preventDefault(); if (!started) { $('bStart').click(); return; } paused = !paused; }
+  else if (e.key === '.') stepWarp(1);
+  else if (e.key === ',') stepWarp(-1);
+  else if (e.key === 'c' || e.key === 'C') {
+    const order = ['vehicle', 'system', 'earth', 'moon'];
+    setCam(order[(order.indexOf(camState.mode) + 1) % order.length], { force: true }); autoCam = false; $('bAutoCam').setAttribute('aria-pressed', 'false');
+  }
+});
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+resetMission();
+// yazı tipi yüklenince gövde yazısını yeniden çiz
+if (document.fonts && document.fonts.load) {
+  document.fonts.load('190px "Saira Stencil One"').then(() => {
+    const tank = rocket.userData.s1.children.find(c => c.material && c.material.map);
+    if (tank) { tank.material.map = bodyTexture('HİLAL'); tank.material.needsUpdate = true; }
+  }).catch(() => {});
+}
+requestAnimationFrame(frame);
+})();
+</script>
